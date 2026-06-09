@@ -1,0 +1,4 @@
+node_modules
+dist
+.openspec-loop.json
+.openspec-loop/
