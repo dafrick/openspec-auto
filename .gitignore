@@ -1,4 +1,5 @@
 node_modules
 dist
-.openspec-loop.json
-.openspec-loop/
+.claude/
+.openspec-auto.json
+.openspec-auto/

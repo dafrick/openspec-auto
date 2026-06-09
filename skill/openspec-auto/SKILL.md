@@ -100,7 +100,7 @@ After Teardown, schedule the next wakeup with `ScheduleWakeup` — unless a term
 
 ## Prompt Templates
 
-Fill the `{{PLACEHOLDERS}}` and pass the result as the `Agent` prompt:
+Each sub-agent is defined entirely by its prompt file — there are no separate sub-agent skills. Fill the `{{PLACEHOLDERS}}` and pass the result as the `Agent` prompt:
 
 - `prompts/triage.md`
 - `prompts/explore.md`
@@ -138,13 +138,14 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 
 ## Integration
 
-| Skill | Stage |
-|-------|-------|
-| `openspec-auto-triage` sub-agent | Triage |
-| `superpowers:using-git-worktrees` | Workspace |
-| `openspec-auto-explore` sub-agent | Explore |
-| `opsx:propose` | Propose |
-| `openspec-auto-implement` sub-agent | Implement |
-| `openspec-auto-review` sub-agent | Review |
-| `superpowers:finishing-a-development-branch` | Wrap up |
-| `opsx:archive` | Wrap up |
+The sub-agents are prompt files (see **Prompt Templates**), not skills. The skills the loop leverages:
+
+| Skill | Stage | Invoked by |
+|-------|-------|-----------|
+| `superpowers:using-git-worktrees` | Workspace | orchestrator |
+| `opsx:propose` | Propose | orchestrator |
+| `opsx:apply` | Implement | implement sub-agent |
+| `superpowers:test-driven-development` | Implement | `opsx:apply` |
+| `superpowers:requesting-code-review` | Review | review sub-agent |
+| `superpowers:finishing-a-development-branch` | Wrap up | orchestrator |
+| `opsx:archive` | Wrap up | orchestrator |
