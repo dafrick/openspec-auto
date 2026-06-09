@@ -78,12 +78,40 @@ The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineli
 ### Requirement: Main loop delegates phases to sub-agent skills
 Phases 1 (Triage), 3 (Explore), 5 (Implement), and 6 (Review) SHALL be executed as sub-agents invoked via the `Agent` tool, each using their dedicated skill file.
 
-#### Scenario: Triage sub-agent invoked
-- **WHEN** Phase 1 begins
-- **THEN** the main loop SHALL invoke the `openspec-loop-triage` skill via the `Agent` tool
-- **THEN** the sub-agent SHALL return the selected issue number (or a signal that no eligible issue exists)
-- **THEN** the main loop SHALL use the returned issue number for subsequent phases
+#### Scenario: Triage sub-agent — SELECTED
+- **WHEN** Phase 1 begins and `openspec-loop-triage` returns `**Status:** SELECTED`
+- **THEN** the main loop SHALL read the issue number, branch prefix, and slug from the prose
+- **THEN** it SHALL proceed to Phase 2 with those values
 
-#### Scenario: Sub-agent failure propagates
-- **WHEN** a sub-agent exits without a valid result
+#### Scenario: Triage sub-agent — NO_ELIGIBLE
+- **WHEN** `openspec-loop-triage` returns `**Status:** NO_ELIGIBLE`
+- **THEN** the main loop SHALL proceed to Phase 8 and schedule a 2-hour wakeup
+
+#### Scenario: Explore sub-agent — EXPLORED
+- **WHEN** `openspec-loop-explore` returns `**Status:** EXPLORED`
+- **THEN** the main loop SHALL proceed to Phase 4 (Propose)
+
+#### Scenario: Explore sub-agent — BLOCKED
+- **WHEN** `openspec-loop-explore` returns `**Status:** BLOCKED`
+- **THEN** the main loop SHALL read the blocking questions from the prose
+- **THEN** it SHALL post the questions to the PR and enter NEEDS-INPUT state
+
+#### Scenario: Implement sub-agent — DONE
+- **WHEN** `openspec-loop-implement` returns `**Status:** DONE`
+- **THEN** the main loop SHALL proceed to Phase 6 (Review)
+
+#### Scenario: Implement sub-agent — BLOCKED or CI_BLOCKED
+- **WHEN** `openspec-loop-implement` returns `**Status:** BLOCKED` or `**Status:** CI_BLOCKED`
+- **THEN** the main loop SHALL update agent state accordingly and proceed to Phase 8
+
+#### Scenario: Review sub-agent — APPROVED
+- **WHEN** `openspec-loop-review` returns `**Status:** APPROVED`
+- **THEN** the main loop SHALL proceed to Phase 7 (Wrap-up)
+
+#### Scenario: Review sub-agent — CHANGES_REQUESTED
+- **WHEN** `openspec-loop-review` returns `**Status:** CHANGES_REQUESTED`
+- **THEN** the main loop SHALL read the findings from the prose and implement accepted changes
+
+#### Scenario: Sub-agent returns no recognizable status
+- **WHEN** a sub-agent exits without a recognizable `**Status:**` line
 - **THEN** the main loop SHALL treat the phase as failed and proceed to Phase 8 (Teardown)

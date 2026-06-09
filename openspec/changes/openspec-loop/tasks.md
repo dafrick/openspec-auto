@@ -30,21 +30,21 @@
 - [ ] 4.2 Write three-criteria eligibility check section (clarity, open questions, bounded scope)
 - [ ] 4.3 Write dedup check section (PR body match, remote branch match)
 - [ ] 4.4 Write selection scoring section (prefer high-impact, low-effort; bugs over vague features)
-- [ ] 4.5 Define output contract: structured result block with issue number, branch type, and kebab-case slug
+- [ ] 4.5 Write output contract section: status `SELECTED` (include issue number, branch prefix, slug in prose) or `NO_ELIGIBLE`
 
 ## 5. Sub-Agent Skill: Explore
 
 - [ ] 5.1 Create `skill/openspec-loop-explore/SKILL.md` with `<SUBAGENT-STOP>` guard
 - [ ] 5.2 Write autonomous Q&A section: generate questions by issue type (bug vs feature), answer each from codebase
 - [ ] 5.3 Write blocking-question detection section: definition, examples (breaking change, API ambiguity), escalation signal via `## Blocking Questions` section
-- [ ] 5.4 Write output contract section: natural language output ending with a required `## Blocking Questions` section (content or "(none)")
+- [ ] 5.4 Write output contract section: status `EXPLORED` (no blocking questions, proceed) or `BLOCKED` (blocking questions listed in prose, orchestrator enters NEEDS-INPUT)
 - [ ] 5.5 Write investigation scope section: start from issue entry point, no full-repo crawl
 
 ## 6. Sub-Agent Skill: Implement
 
 - [ ] 6.1 Create `skill/openspec-loop-implement/SKILL.md` with `<SUBAGENT-STOP>` guard and Mermaid flow diagram
 - [ ] 6.2 Write TDD cycle section: invoke `superpowers:test-driven-development`, confirm failing test, write implementation, confirm passing
-- [ ] 6.3 Write per-task attempt cap section (3 failures → CI-BLOCKED comment + agent-state update + exit)
+- [ ] 6.3 Write per-task attempt cap section (3 failures → status `BLOCKED`, CI failures → status `CI_BLOCKED`; both include summary in prose)
 - [ ] 6.4 Write CI monitoring section: `gh pr checks --watch` after each push, CI fix cycle up to 3 attempts
 - [ ] 6.5 Write commit discipline section: conventional commits format, stage specific files (not `git add .`)
 - [ ] 6.6 Write task completion section: check off `tasks.md` item after tests pass, call `update-pr-state` for counter updates
@@ -63,7 +63,7 @@
 - [ ] 8.3 Write Phase 0 (Assess State): config check, read local `state.json` (primary path); if absent, scan GitHub PRs for agent-state markers (crash recovery), reconstruct state.json; resume or proceed to triage
 - [ ] 8.4 Write Phase 1 (Triage): invoke `openspec-loop-triage` sub-agent via `Agent` tool, parse result
 - [ ] 8.5 Write Phase 2 (Workspace Setup): `git checkout main && pull`, branch naming, `superpowers:using-git-worktrees`, empty commit, draft PR creation
-- [ ] 8.6 Write Phase 3 (Explore): invoke `openspec-loop-explore` sub-agent via `Agent` tool, read `## Blocking Questions` section from output, enter NEEDS-INPUT if content present
+- [ ] 8.6 Write Phase 3 (Explore): invoke `openspec-loop-explore` sub-agent via `Agent` tool, branch on status: `EXPLORED` → proceed to Phase 4; `BLOCKED` → read blocking questions from prose, post to PR, enter NEEDS-INPUT
 - [ ] 8.7 Write Phase 4 (Propose): invoke `opsx:propose` via Skill tool, commit artifacts, spawn proposal-review Agent
 - [ ] 8.8 Write Phase 5 (Implement): invoke `openspec-loop-implement` sub-agent via `Agent` tool, handle CI-BLOCKED result
 - [ ] 8.9 Write Phase 6 (Review): reset `ciFixes`, `gh pr ready`, invoke `openspec-loop-review` sub-agent, handle CI-BLOCKED result

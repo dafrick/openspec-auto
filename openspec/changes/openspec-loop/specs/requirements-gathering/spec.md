@@ -15,35 +15,33 @@ The `openspec-loop-explore` sub-agent SHALL generate a set of relevant questions
 
 ---
 
-### Requirement: Explore sub-agent output ends with a Blocking Questions section
-The sub-agent's output SHALL end with a `## Blocking Questions` section. This section lists any questions that cannot be resolved from the codebase and require human input before implementation can proceed. If there are none, the section SHALL contain "(none)".
+### Requirement: Explore sub-agent reports status EXPLORED or BLOCKED
+The sub-agent's output SHALL begin with a status line. Status `EXPLORED` means no blocking questions were found and implementation can proceed. Status `BLOCKED` means blocking questions are present and require human input.
 
-#### Scenario: No blocking questions
+#### Scenario: No blocking questions — EXPLORED
 - **WHEN** the explore sub-agent completes without finding questions requiring human input
-- **THEN** its output SHALL end with:
-  ```
-  ## Blocking Questions
-  (none)
-  ```
+- **THEN** its output SHALL begin with `**Status:** EXPLORED`
+- **THEN** the main loop SHALL proceed to Phase 4 (Propose)
 
-#### Scenario: Blocking questions present
+#### Scenario: Blocking questions present — BLOCKED
 - **WHEN** the explore sub-agent identifies one or more questions that require human input
-- **THEN** its output SHALL end with a `## Blocking Questions` section listing each question
-- **THEN** the main loop SHALL read this section and enter NEEDS-INPUT state
+- **THEN** its output SHALL begin with `**Status:** BLOCKED`
+- **THEN** its output SHALL list the blocking questions in prose so the orchestrator can post them to the PR
+- **THEN** the main loop SHALL enter NEEDS-INPUT state
 
 ---
 
-### Requirement: The orchestrator determines NEEDS-INPUT from the Blocking Questions section
-The main loop SHALL read the explore sub-agent's output and determine whether to proceed or enter NEEDS-INPUT based on the content of the `## Blocking Questions` section.
+### Requirement: The orchestrator branches on status code
+The main loop SHALL read the explore sub-agent's status code to determine whether to proceed or enter NEEDS-INPUT.
 
-#### Scenario: Orchestrator reads blocking questions
-- **WHEN** the explore sub-agent's output is returned to the main loop
-- **THEN** the main loop SHALL check whether `## Blocking Questions` contains content beyond "(none)"
-- **THEN** if blocking questions exist, it SHALL enter NEEDS-INPUT and post the questions to the PR
-
-#### Scenario: Orchestrator proceeds when no blocking questions
-- **WHEN** `## Blocking Questions` contains only "(none)"
+#### Scenario: Orchestrator reads EXPLORED
+- **WHEN** the explore sub-agent returns `**Status:** EXPLORED`
 - **THEN** the main loop SHALL proceed to Phase 4 (Propose)
+
+#### Scenario: Orchestrator reads BLOCKED
+- **WHEN** the explore sub-agent returns `**Status:** BLOCKED`
+- **THEN** the main loop SHALL read the blocking questions from the prose output
+- **THEN** it SHALL post the questions to the PR under a `## Blocking Questions` heading and enter NEEDS-INPUT
 
 ---
 

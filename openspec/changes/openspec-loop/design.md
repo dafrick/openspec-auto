@@ -75,13 +75,44 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Decision**: `openspec-loop-explore` generates questions appropriate for the issue type (bug vs feature) and answers each from codebase investigation. Output is natural language — no rigid schema or machine-parseable format. The only structural requirement is that the output MUST end with a `## Blocking Questions` section listing any questions that require human input before implementation can proceed. If there are none, the section reads "(none)".
 
-**The orchestrator's contract**: After the explore sub-agent returns, the main loop reads the sub-agent's output and checks whether the `## Blocking Questions` section has content beyond "(none)". If it does, the loop enters NEEDS-INPUT. The orchestrator uses LLM understanding to read this section — not scripted parsing.
+**The orchestrator's contract**: The explore sub-agent returns `**Status:** EXPLORED` (no blocking questions — proceed to Phase 4) or `**Status:** BLOCKED` (blocking questions present — enter NEEDS-INPUT). The status code is the machine-readable signal; the blocking questions themselves are in the prose and the orchestrator reads them to post to the PR.
 
 **Rationale**: Overly structured output formats are brittle. Models drift from strict JSON or enumerated headings under real workloads. Natural language with one required section is the right balance — the section heading is easy for a model to produce consistently, and the orchestrator can read it reliably without fragile regex. Treating explore as a pass-through produces no signal above what the issue body already contains.
 
 ---
 
-### D6: Worktree Management — `ExitWorktree` Tool
+### D6: Sub-Agent Output Contract — Status Enum + Prose
+
+**Decision**: Every sub-agent output begins with a `**Status:** <CODE>` line. The status code is the machine-readable signal the orchestrator branches on. Natural language prose follows, providing detail the orchestrator can read with LLM understanding when needed (e.g., reading blocking questions from the explore sub-agent to post to the PR).
+
+**Status enums per sub-agent:**
+
+| Sub-agent | Status codes |
+|-----------|-------------|
+| `openspec-loop-triage` | `SELECTED`, `NO_ELIGIBLE` |
+| `openspec-loop-explore` | `EXPLORED`, `BLOCKED` |
+| `openspec-loop-implement` | `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `CI_BLOCKED` |
+| `openspec-loop-review` | `APPROVED`, `CHANGES_REQUESTED`, `CI_BLOCKED` |
+
+**Rationale**: Status codes make orchestrator branching reliable without scripted parsing of prose. The pattern is taken directly from the superpowers `subagent-driven-development` skill, which uses `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `NEEDS_CONTEXT`. Prose detail is for human observers and for the orchestrator to mine for specifics when needed (e.g., which blocking questions to post).
+
+**Context is passed inline**: The orchestrator constructs each sub-agent's invocation prompt with all needed context (issue body, task list, PR number) pasted inline. Sub-agents do not read files the orchestrator didn't give them. This is the superpowers principle: "you construct exactly what they need."
+
+**Alternative considered**: File-based handoff (sub-agent writes result JSON, orchestrator reads). Rejected — adds file I/O, cleanup contracts, and shared-state complexity. Status enum + prose handled by LLM is simpler and equally reliable for the data volumes involved.
+
+---
+
+### D7: Separate Skill Files Per Sub-Agent
+
+**Decision**: Each sub-agent has its own `SKILL.md` file (`skill/openspec-loop-triage/SKILL.md`, etc.). Skill files are not merged into a single parameterized skill.
+
+**Rationale**: The four sub-agents have genuinely different workflow structures. Triage and explore are stateless evaluation tasks (no commits, no loops). Implement is a stateful execution loop with TDD, per-task attempt caps, CI monitoring, and commit discipline. Review has a CI fix tail. A single skill with mode branches would be ~300 lines with completely different content per branch — harder to read and maintain than four focused files of 40-120 lines each.
+
+**Shared conventions** appear consistently in each skill file rather than being abstracted out: the `<SUBAGENT-STOP>` guard, the status output format, and the context-injection principle.
+
+---
+
+### D8: Worktree Management — `ExitWorktree` Tool
 
 **Decision**: Use the Claude Code harness `ExitWorktree` tool with `action: "keep"` for teardown. Document `git worktree remove <path>` as the manual fallback.
 
@@ -89,7 +120,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ---
 
-### D7: State Machine Diagram in Main Skill — Mermaid
+### D9: State Machine Diagram in Main Skill — Mermaid
 
 **Decision**: The main `openspec-loop` skill includes the phase state machine as a Mermaid diagram. Sub-agent skills include flow diagrams where they aid comprehension.
 
@@ -97,7 +128,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ---
 
-### D8: `ciFixes` Counter Resets Per Phase
+### D10: `ciFixes` Counter Resets Per Phase
 
 **Decision**: The `ciFixes` field in agent-state tracks CI fix attempts within the current phase only. It resets to 0 when Phase 6 starts.
 
@@ -105,7 +136,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ---
 
-### D9: TypeScript for All Scripts, With Tests
+### D11: TypeScript for All Scripts, With Tests
 
 **Decision**: All non-skill tooling (init script, state sync helper) is written in TypeScript. Each script has a corresponding test file. Tests use Node's built-in test runner (`node:test`).
 
