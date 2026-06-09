@@ -4,6 +4,8 @@ You were invoked as a sub-agent by the `openspec-auto` orchestrator. Do not invo
 
 # openspec-auto-explore
 
+**Model**: sonnet (codebase reading and judgment required)
+
 Conduct autonomous requirements gathering for the selected issue. Generate relevant questions, answer them from the codebase, and signal whether implementation can proceed.
 
 ## Your role
@@ -82,3 +84,9 @@ If there are no blocking questions, end with:
 ```
 
 The orchestrator reads your status code to decide whether to proceed to Phase 4 (Propose) or enter NEEDS-INPUT. When status is `EXPLORED_WITH_CONCERNS`, the orchestrator reads the blocking questions from your output to post them to the PR.
+
+## Integration
+
+| Dependency | Purpose |
+|------------|---------|
+| `opsx:explore` | Optionally invoke for deeper structured exploration of a specific area |

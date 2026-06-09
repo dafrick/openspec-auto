@@ -4,97 +4,74 @@ You were invoked as a sub-agent by the `openspec-auto` orchestrator. Do not invo
 
 # openspec-auto-review
 
-Perform an independent code review of the implementation PR. Derive all context from the PR — no prior conversation history.
+Review the implementation PR using `superpowers:requesting-code-review`, then apply the openspec-auto finding categorization rules.
 
 ## Context isolation
 
-You receive only the PR number in your invocation prompt. Derive all context from the PR itself:
+You receive only the PR number. Derive all context from the PR itself — no prior conversation history.
 
-```bash
-gh pr view <PR> --json title,body,headRefName,baseRefName
-gh pr diff <PR>
+## Step 1 — Establish scope
+
+Read the PR description to determine what problem was being solved and what was explicitly in scope. The linked issue number and OpenSpec change name are in the description.
+
+## Step 2 — Invoke superpowers:requesting-code-review
+
+```js
+Skill({ skill: "superpowers:requesting-code-review" })
 ```
 
-Read the PR description for:
-- The linked issue number
-- Agent state (`<!-- agent-state: {...} -->` comment)
-- The OpenSpec change name (to locate `tasks.md` and the design doc)
+This handles diff reading, finding identification, and severity judgment. Let it complete.
 
-## Step 1 — Understand the scope
+## Step 3 — Categorize findings (your unique addition)
 
-From the linked issue and PR description, determine:
-- What problem was being solved
-- What was explicitly in scope
-- What was out of scope
+For each finding from the review, apply the scope filter:
 
-## Step 2 — Review the diff
+**In-scope** — implement it:
+- Correct and within the scope of the linked issue (missing null check, wrong branch condition, test that doesn't assert correctly)
 
-Review the PR diff for:
-- Correctness: does the implementation solve the stated problem?
-- Test coverage: are the changes covered by tests?
-- Commit discipline: do commits follow conventional commits format?
-- Code quality: simplification, reuse, efficiency opportunities
-
-## Step 3 — Categorize findings
-
-For each finding, categorize it:
-
-**In-scope / correct** — implement it:
-- The fix is clearly correct and within the scope of the linked issue
-- Example: a missing null check, an incorrect branch condition, a test that doesn't actually assert the right thing
-
-**Out-of-scope** — log in PR comment, skip:
-- The finding would change behavior beyond what the linked issue asks for
+**Out-of-scope** — post a PR comment and skip:
+- Would change behavior beyond what the linked issue asks for
 - Post: `"Finding considered but deferred: <description>. Reason: out of scope for this issue."`
 
 **Unclear / design-level** — leave for human reviewer:
-- The finding would substantially change the design or require a decision by the maintainer
-- Note it in the PR description without implementing it
+- Would substantially change the design or require a maintainer decision
+- Note it in the PR description without implementing
 
-## Step 4 — Implement in-scope findings
-
-For each in-scope finding:
-1. Make the fix
-2. Commit: `fix(<scope>): <description>` (conventional commits)
-3. Push
-
-After all fixes are pushed, wait for CI:
-
+After implementing in-scope findings, wait for CI:
 ```bash
 gh pr checks <PR> --watch
 ```
 
-**CI fix cap**: This is Phase 6 — `ciFixes` resets to 0 at the start of this phase. If CI fails, inspect the failure, apply a targeted fix, commit, and push. After 3 CI failures, enter CI-BLOCKED.
+**CI fix cap**: `ciFixes` resets to 0 at Phase 6 start. After 3 CI failures, enter CI-BLOCKED.
 
 ## Output contract
 
-**When review is complete and CI passes:**
 ```
 **Status:** APPROVED
-
 <summary of findings and what was implemented vs deferred>
 ```
 
-**When in-scope fixes require implementation (implemented already):**
 ```
 **Status:** CHANGES_REQUESTED
 
 Implemented:
-- <list of what was fixed>
+- <list>
 
 Deferred (out-of-scope):
-- <list of what was skipped with reason>
+- <list with reason>
 
 Left for human:
-- <list of design-level items>
+- <list>
 ```
 
-**When CI exhausts fix attempts:**
 ```
 **Status:** CI_BLOCKED
-
 CI failures: <N> attempts
-<summary of failures and fixes tried>
+<summary>
 ```
 
-The orchestrator reads `APPROVED`, `CHANGES_REQUESTED`, or `CI_BLOCKED` from the status line.
+## Integration
+
+| Skill | What it covers | What this skill adds |
+|-------|---------------|----------------------|
+| `superpowers:requesting-code-review` | Diff reading, finding identification, severity | Scope filter: in-scope / out-of-scope / unclear categorization |

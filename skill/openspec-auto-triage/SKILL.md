@@ -6,6 +6,8 @@ You were invoked as a sub-agent by the `openspec-auto` orchestrator. Do not invo
 
 Evaluate open GitHub issues and return the best candidate for autonomous implementation.
 
+**Model**: haiku (mechanical fetch + filter, no judgment required)
+
 ## Flow
 
 ```mermaid
@@ -89,4 +91,18 @@ Branch slug: `<3-5-word-kebab-slug-from-title>`
 <brief explanation — what was checked, why nothing passed>
 ```
 
-The orchestrator reads `SELECTED` or `NO_ELIGIBLE` from the status line, then reads the issue number, branch prefix, and branch slug from the prose.
+**When GitHub API is unavailable (auth error, rate limit):**
+
+```
+**Status:** NEEDS_CONTEXT
+
+<description of the error — which command failed and why>
+```
+
+The orchestrator reads `SELECTED`, `NO_ELIGIBLE`, or `NEEDS_CONTEXT` from the status line. On `SELECTED`, it reads the issue number, branch prefix, and branch slug from the prose.
+
+## Integration
+
+| Dependency | Purpose |
+|------------|---------|
+| `gh` CLI | Fetch issues, PRs, and remote branches |

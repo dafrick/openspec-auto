@@ -94,6 +94,7 @@ Invoke the triage sub-agent:
 ```js
 Agent({
   description: "Issue triage",
+  model: "haiku",
   prompt: `You are the openspec-auto-triage sub-agent. Invoke your skill at skill/openspec-auto-triage/SKILL.md and select the best issue to implement in the repository at <repo-path>.`,
   subagent_type: "claude"
 })
@@ -102,6 +103,7 @@ Agent({
 Parse the result:
 - `**Status:** SELECTED` → read issue number, branch prefix, slug from prose → proceed to Phase 2
 - `**Status:** NO_ELIGIBLE` → proceed to Phase 8 with 2-hour wakeup
+- `**Status:** NEEDS_CONTEXT` → output a diagnostic message and stop without scheduling a wakeup
 - No recognizable status → treat as failed, proceed to Phase 8
 
 ---
@@ -154,6 +156,7 @@ Invoke the explore sub-agent:
 ```js
 Agent({
   description: "Requirements gathering",
+  model: "sonnet",
   prompt: `You are the openspec-auto-explore sub-agent. Invoke your skill at skill/openspec-auto-explore/SKILL.md.
 
 Issue #<N>: <title>
@@ -213,6 +216,7 @@ Invoke the implement sub-agent:
 ```js
 Agent({
   description: "Implementation",
+  model: "sonnet",
   prompt: `You are the openspec-auto-implement sub-agent. Invoke your skill at skill/openspec-auto-implement/SKILL.md.
 
 PR: #<PR>
@@ -249,6 +253,7 @@ Invoke the review sub-agent:
 ```js
 Agent({
   description: "Code review",
+  model: "opus",
   prompt: `You are the openspec-auto-review sub-agent. Invoke your skill at skill/openspec-auto-review/SKILL.md.
 
 PR: #<PR>
@@ -269,11 +274,13 @@ Parse the result:
 
 Update state: `phase: "COMPLETE"`. Sync to PR.
 
-Update PR description with a final summary. Review and update OpenSpec artifacts if needed.
+Run the finishing workflow:
+```js
+Skill({ skill: "superpowers:finishing-a-development-branch" })
+```
 
-Archive the change:
-```bash
-# Via Skill tool:
+Archive the OpenSpec change:
+```js
 Skill({ skill: "opsx:archive" })
 ```
 
@@ -324,3 +331,16 @@ Valid phase values: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT
 ## Sub-agent invocation principle
 
 Pass all needed context inline in the sub-agent's prompt. Sub-agents have no conversation history. The orchestrator constructs exactly what they need — issue body, task list, PR number, repo path — pasted inline.
+
+## Integration
+
+| Skill | Phase | Model |
+|-------|-------|-------|
+| `openspec-auto-triage` sub-agent | Phase 1 | haiku |
+| `superpowers:using-git-worktrees` | Phase 2 | — |
+| `openspec-auto-explore` sub-agent | Phase 3 | sonnet |
+| `opsx:propose` | Phase 4 | — |
+| `openspec-auto-implement` sub-agent | Phase 5 | sonnet |
+| `openspec-auto-review` sub-agent | Phase 6 | opus |
+| `superpowers:finishing-a-development-branch` | Phase 7 | — |
+| `opsx:archive` | Phase 7 | — |
