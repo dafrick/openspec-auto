@@ -1,346 +1,149 @@
-<SUBAGENT-STOP>
-This skill manages the orchestrator loop. If you were dispatched as a sub-agent for a specific sub-task (triage, explore, implement, review), stop here — you have your own skill file. This skill is for the main orchestrator only.
-</SUBAGENT-STOP>
-
 # openspec-auto
 
-## Script convention
+Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper trail: triage an issue, gather requirements, write a proposal, implement it test-first, review it, and hand a ready PR to a human.
 
-Scripts live inside this skill's directory. Set `OSL` before any script call:
+**Why an orchestrator + sub-agents:** Each expensive stage (triage, explore, implement, review) runs as a fresh sub-agent with an isolated context window. You — the orchestrator — hold only the state machine and the structured result each sub-agent returns. Sub-agents never inherit your history; you construct exactly the context they need from a prompt template. This prevents the instruction drift that destroys long single-context runs.
+
+**Core principle:** One issue per invocation. Local `state.json` is the source of truth; the PR description is the human-visible checkpoint; each stage advances the state machine by branching on the sub-agent's `**Status:**` line.
+
+**Continuous execution:** Do not pause to check in with your human between stages. Run the whole machine. The only reasons to stop are the four terminal conditions in **Stopping Conditions** below — otherwise keep going.
+
+## The Process
+
+```mermaid
+flowchart TD
+    A[Assess state] -->|resumable PR| R[Resume at saved stage]
+    A -->|nothing in flight| T[Triage: pick an issue]
+    R --> X((rejoin machine))
+
+    T -->|NO_ELIGIBLE / NEEDS_CONTEXT| Z[Teardown]
+    T -->|SELECTED| W[Set up workspace: branch + draft PR]
+
+    W --> E[Explore: gather requirements]
+    E -->|EXPLORED_WITH_CONCERNS| NI[Post blocking questions → NEEDS-INPUT] --> Z
+    E -->|EXPLORED| P[Propose: opsx:propose + artifact review]
+
+    P --> I[Implement: opsx:apply + CI watch]
+    I -->|BLOCKED / CI_BLOCKED| Z
+    I -->|DONE| V[Review: requesting-code-review + scope filter]
+
+    V -->|CHANGES_REQUESTED| V
+    V -->|CI_BLOCKED| Z
+    V -->|APPROVED| F[Wrap up: finish branch, archive, assign reviewer]
+
+    F --> Z[Teardown: exit worktree, return to main]
+    Z --> S{Schedule next?}
+    S -->|work done| K[Wake in 30m]
+    S -->|no eligible issues| L[Wake in 2h]
+    S -->|terminal stop| H[Stop, no wakeup]
+```
+
+## Model Selection
+
+Dispatch each sub-agent with the cheapest model that fits the work:
+
+| Sub-agent | Model | Why |
+|-----------|-------|-----|
+| triage    | haiku  | Mechanical fetch + filter, no design judgment |
+| explore   | sonnet | Codebase reading and requirement judgment |
+| implement | sonnet | Coordinates `opsx:apply`, integration work |
+| review    | opus   | Design judgment and scope categorization — highest stakes |
+
+## Handling Sub-Agent Status
+
+Every sub-agent returns a `**Status:**` line. Branch on it. If a sub-agent returns no recognizable status, treat the stage as failed and go to Teardown.
+
+| Sub-agent | Status | Action |
+|-----------|--------|--------|
+| triage    | `SELECTED` | Read issue #, branch prefix, slug from prose → **Set up workspace** |
+| triage    | `NO_ELIGIBLE` | Teardown, schedule 2h wakeup |
+| triage    | `NEEDS_CONTEXT` | GitHub unreachable — print the error, stop, no wakeup |
+| explore   | `EXPLORED` | → **Propose** |
+| explore   | `EXPLORED_WITH_CONCERNS` | Read blocking questions from prose, post to PR, set `NEEDS-INPUT` + `blocked:true`, Teardown, no wakeup |
+| implement | `DONE` | → **Review** |
+| implement | `BLOCKED` | Set `blocked:true`, Teardown, no wakeup |
+| implement | `CI_BLOCKED` | Set `CI-BLOCKED` + `blocked:true`, Teardown, no wakeup |
+| review    | `APPROVED` | → **Wrap up** |
+| review    | `CHANGES_REQUESTED` | Sub-agent already implemented fixes; confirm CI green, re-dispatch review once |
+| review    | `CI_BLOCKED` | Set `CI-BLOCKED` + `blocked:true`, Teardown, no wakeup |
+
+## The Stages
+
+Each stage updates `state.json` to the new phase and syncs it to the PR *before* doing the stage's work (see **State & Scripts**). Sub-agent stages are dispatched with the `Agent` tool using the matching prompt template and model.
+
+**Assess state.** Read config; if `.openspec-auto.json` is missing, stop and tell the user to run init. Read local `state.json`: if it exists, `blocked:false`, and phase isn't `COMPLETE`, resume at that stage. If `blocked:true` or `COMPLETE`, discard it and triage fresh. If there's no local state, scan open PRs for an `<!-- agent-state: … -->` marker (crash recovery) and resume from a reconstructed file; otherwise triage.
+
+**Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It picks one eligible issue.
+
+**Set up workspace.** Run `setup-workspace.ts` — it checks out main, creates the `<prefix>/<issue>-<slug>` branch, anchors an empty commit, opens the draft PR, and initializes `state.json`. Then enter an isolated workspace with `superpowers:using-git-worktrees`.
+
+**Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline.
+
+**Propose.** Invoke `opsx:propose` to generate the proposal, specs, design, and tasks. Commit the artifacts, record the `changeName` in state, then spawn a brief Agent to sanity-check that the tasks are clear and implementable; fix the artifacts if it flags gaps.
+
+**Implement.** Dispatch the implement sub-agent (`prompts/implement.md`).
+
+**Review.** Reset `ciFixes` to 0, mark the PR ready (`gh pr ready`), then dispatch the review sub-agent (`prompts/review.md`).
+
+**Wrap up.** Set phase `COMPLETE` and sync. Invoke `superpowers:finishing-a-development-branch`, then `opsx:archive`, then assign the reviewer (`gh pr edit --add-reviewer <reviewer>`).
+
+**Teardown — always runs.** `ExitWorktree({ action: "keep" })`, check out main, pull. Then schedule per **Stopping Conditions**.
+
+## Stopping Conditions
+
+After Teardown, schedule the next wakeup with `ScheduleWakeup` — *unless* a terminal stop applies, in which case print why and schedule nothing.
+
+- **Work completed** (success, NEEDS-INPUT, or CI-BLOCKED reached) → wake in 30 minutes.
+- **No eligible issues** → wake in 2 hours.
+- **Terminal stops — no wakeup:** every open issue is in-flight or ineligible; `gh` auth expired (any `gh` command returned an auth error); `NEEDS-INPUT` entered; `CI-BLOCKED` entered.
+
+## Prompt Templates
+
+Dispatch sub-agents by filling the `{{PLACEHOLDERS}}` in these and passing the result as the `Agent` prompt:
+
+- `prompts/triage.md`
+- `prompts/explore.md`
+- `prompts/implement.md`
+- `prompts/review.md`
+
+## State & Scripts
+
+`state.json` lives in `.openspec-auto/` and carries `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`. Valid phases: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `COMPLETE`, `CI-BLOCKED`.
+
+Scripts live in this skill's directory. Set the base once, then call:
 
 ```bash
 OSL=~/.claude/skills/openspec-auto
-```
-
-Then invoke scripts as:
-```bash
 $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 ```
 
-First-time setup (run once after cloning):
-```bash
-OSL=~/.claude/skills/openspec-auto && cd $OSL && npm install
-```
-
-Autonomous GitHub issue lifecycle agent. On each invocation, resolve one issue end-to-end: triage → explore → propose → implement → review → wrap-up.
-
-## State machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> Phase0
-
-    Phase0 --> Phase1 : no local state or blocked or COMPLETE
-    Phase0 --> PhaseN : resume from state.json (blocked: false)
-
-    Phase1 --> Phase8 : NO_ELIGIBLE (2h wakeup)
-    Phase1 --> Phase2 : SELECTED
-
-    Phase2 --> Phase3
-
-    Phase3 --> Phase4 : EXPLORED
-    Phase3 --> NEEDS_INPUT : EXPLORED_WITH_CONCERNS
-    NEEDS_INPUT --> Phase8
-
-    Phase4 --> Phase5
-
-    Phase5 --> Phase6 : DONE
-    Phase5 --> Phase8 : BLOCKED or CI_BLOCKED
-
-    Phase6 --> Phase6 : CHANGES_REQUESTED (implement, retry)
-    Phase6 --> Phase7 : APPROVED
-    Phase6 --> Phase8 : CI_BLOCKED
-
-    Phase7 --> Phase8
-
-    Phase8 --> [*]
-```
-
----
-
-## Phase 0 — Assess State
-
-**Check config first:**
-```bash
-cat .openspec-auto.json
-```
-If absent or invalid, stop:
-> Config not found. Run `OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/init.ts` to set up.
-
-**Read local state:**
-```bash
-OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/read-state.ts
-```
-
-- If state.json exists and `blocked: false` and phase is not `COMPLETE` → resume from that phase (jump to Phase N)
-- If state.json exists and `blocked: true` → clear state, proceed to Phase 1
-- If state.json exists and `phase: "COMPLETE"` → clear state, proceed to Phase 1
-- If state.json is absent → crash recovery: scan GitHub PRs
-
-**Crash recovery (state.json absent):**
-```bash
-gh pr list --state open --json number,body --limit 100
-```
-Scan each PR body for `<!-- agent-state: {...} -->`. Parse the JSON. If found and `blocked: false` and phase is not `COMPLETE`, write that state back to `state.json` and resume.
-
-If no resumable PR found → proceed to Phase 1.
-
----
-
-## Phase 1 — Triage
-
-Invoke the triage sub-agent:
-
-```js
-Agent({
-  description: "Issue triage",
-  model: "haiku",
-  prompt: `You are the openspec-auto-triage sub-agent. Invoke your skill at skill/openspec-auto-triage/SKILL.md and select the best issue to implement in the repository at <repo-path>.`,
-  subagent_type: "claude"
-})
-```
-
-Parse the result:
-- `**Status:** SELECTED` → read issue number, branch prefix, slug from prose → proceed to Phase 2
-- `**Status:** NO_ELIGIBLE` → proceed to Phase 8 with 2-hour wakeup
-- `**Status:** NEEDS_CONTEXT` → output a diagnostic message and stop without scheduling a wakeup
-- No recognizable status → treat as failed, proceed to Phase 8
-
----
-
-## Phase 2 — Workspace Setup
-
-```bash
-git checkout main && git pull origin main
-```
-
-Branch name: `<prefix>/<issue>-<slug>` (e.g., `fix/42-missing-null-check`)
-
-```bash
-git checkout -b <branch>
-```
-
-Use the `superpowers:using-git-worktrees` skill via the `Skill` tool to set up an isolated worktree.
-
-Create an empty commit to anchor the PR:
-```bash
-git commit --allow-empty -m "chore: open work on issue #<N>"
-git push -u origin <branch>
-```
-
-Create draft PR:
-```bash
-gh pr create --draft --title "fix: <issue title>" --body "Closes #<N>" --base main
-```
-
-Read the PR number from the output.
-
-Initialize state.json:
-```bash
-OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '{"phase":"WORKSPACE","issue":<N>,"prNumber":<PR>,"branch":"<branch>","changeName":"","ciFixes":0,"blocked":false}'
-```
-
-Sync state to PR:
-```bash
-OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts <PR>
-```
-
----
-
-## Phase 3 — Explore
-
-Update state: `phase: "EXPLORE"`. Sync to PR.
-
-Invoke the explore sub-agent:
-
-```js
-Agent({
-  description: "Requirements gathering",
-  model: "sonnet",
-  prompt: `You are the openspec-auto-explore sub-agent. Invoke your skill at skill/openspec-auto-explore/SKILL.md.
-
-Issue #<N>: <title>
-<issue body>
-<issue comments>
-
-Working directory: <repo-path>`,
-  subagent_type: "claude"
-})
-```
-
-Parse the result:
-- `**Status:** EXPLORED` → proceed to Phase 4
-- `**Status:** EXPLORED_WITH_CONCERNS` → read blocking questions from prose, post to PR, enter NEEDS-INPUT:
-  ```bash
-  gh pr comment <PR> --body "## Blocking Questions\n\n<questions>"
-  ```
-  Update state: `phase: "NEEDS-INPUT"`, `blocked: true`. Sync to PR. → Phase 8 (no wakeup)
-- No recognizable status → treat as failed → Phase 8
-
----
-
-## Phase 4 — Propose
-
-Update state: `phase: "PROPOSE"`. Sync to PR.
-
-Invoke `opsx:propose` via the `Skill` tool, passing the issue details. This generates the OpenSpec proposal, specs, design, and tasks.
-
-After the skill completes, commit the generated artifacts:
-```bash
-git add openspec/
-git commit -m "chore(openspec): add proposal and artifacts for issue #<N>"
-git push
-```
-
-Update state: `changeName: "<generated-change-name>"`. Write and sync.
-
-Spawn a lightweight proposal review agent to check the plan makes sense before implementation begins:
-```js
-Agent({
-  description: "Proposal review",
-  prompt: `Review the OpenSpec proposal at openspec/changes/<changeName>/proposal.md and tasks at openspec/changes/<changeName>/tasks.md. Check that tasks are clear and implementable. Report any gaps. Keep it brief.`,
-  subagent_type: "claude"
-})
-```
-
-If the review surfaces issues, update the artifacts before proceeding.
-
----
-
-## Phase 5 — Implement
-
-Update state: `phase: "IMPLEMENT"`. Sync to PR.
-
-Invoke the implement sub-agent:
-
-```js
-Agent({
-  description: "Implementation",
-  model: "sonnet",
-  prompt: `You are the openspec-auto-implement sub-agent. Invoke your skill at skill/openspec-auto-implement/SKILL.md.
-
-PR: #<PR>
-Branch: <branch>
-Issue: #<N>
-Change name: <changeName>
-Working directory: <repo-path>
-
-Tasks:
-<tasks.md contents>`,
-  subagent_type: "claude"
-})
-```
-
-Parse the result:
-- `**Status:** DONE` → proceed to Phase 6
-- `**Status:** BLOCKED` → update state: `blocked: true`. Sync. → Phase 8
-- `**Status:** CI_BLOCKED` → update state: `phase: "CI-BLOCKED"`, `blocked: true`. Sync. → Phase 8
-- No recognizable status → treat as failed → Phase 8
-
----
-
-## Phase 6 — Review
-
-Reset CI fixes: update state `ciFixes: 0`. Sync to PR.
-
-Mark PR ready:
-```bash
-gh pr ready <PR>
-```
-
-Invoke the review sub-agent:
-
-```js
-Agent({
-  description: "Code review",
-  model: "opus",
-  prompt: `You are the openspec-auto-review sub-agent. Invoke your skill at skill/openspec-auto-review/SKILL.md.
-
-PR: #<PR>
-Working directory: <repo-path>`,
-  subagent_type: "claude"
-})
-```
-
-Parse the result:
-- `**Status:** APPROVED` → proceed to Phase 7
-- `**Status:** CHANGES_REQUESTED` → the sub-agent already implemented the changes; check if CI passes, then re-run the review sub-agent once more
-- `**Status:** CI_BLOCKED` → update state: `phase: "CI-BLOCKED"`, `blocked: true`. Sync. → Phase 8
-- No recognizable status → treat as failed → Phase 8
-
----
-
-## Phase 7 — Wrap-up
-
-Update state: `phase: "COMPLETE"`. Sync to PR.
-
-Run the finishing workflow:
-```js
-Skill({ skill: "superpowers:finishing-a-development-branch" })
-```
-
-Archive the OpenSpec change:
-```js
-Skill({ skill: "opsx:archive" })
-```
-
-Assign reviewer:
-```bash
-gh pr edit <PR> --add-reviewer <reviewer>
-```
-
----
-
-## Phase 8 — Teardown
-
-Always runs, regardless of how the iteration ended.
-
-Exit the worktree:
-```js
-ExitWorktree({ action: "keep" })
-```
-
-Return to main:
-```bash
-git checkout main && git pull origin main
-```
-
-**Schedule next wakeup** (via `ScheduleWakeup`):
-- Completed work (success, NEEDS-INPUT, CI-BLOCKED): 30 minutes
-- No eligible issues: 2 hours
-- NEEDS-INPUT or CI-BLOCKED: **do not schedule** — stop and wait for human
-
-**Stopping conditions — do NOT call ScheduleWakeup when:**
-- All issues are in-flight or ineligible
-- `gh` authentication has expired (any `gh` command exited with auth error)
-- NEEDS-INPUT state was entered
-- CI-BLOCKED state was entered
-
-Output a clear message explaining why the loop stopped.
-
----
-
-## State update protocol
-
-After every phase transition:
-1. `OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<json>'`
-2. `OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts <PR>` (when a PR exists)
-
-Valid phase values: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `COMPLETE`, `CI-BLOCKED`
-
-## Sub-agent invocation principle
-
-Pass all needed context inline in the sub-agent's prompt. Sub-agents have no conversation history. The orchestrator constructs exactly what they need — issue body, task list, PR number, repo path — pasted inline.
+| Script | Purpose |
+|--------|---------|
+| `read-state.ts` | Read and validate `state.json` |
+| `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) |
+| `sync-pr-state.ts <PR>` | Render the `## Agent Status` table + marker into the PR body |
+| `setup-workspace.ts <issue> <branch> <title>` | Branch + empty commit + draft PR + init state |
+
+**State update protocol:** on every stage transition, `write-state.ts` first, then `sync-pr-state.ts <PR>` once a PR exists. First-time setup: `cd $OSL && npm install`.
+
+## Red Flags
+
+- **Never resume a `blocked:true` or `COMPLETE` issue** — triage a fresh one.
+- **Never skip Teardown** — it runs on every exit path, including terminal stops.
+- **Never start Review before implement returns `DONE`**, or Wrap-up before Review returns `APPROVED`.
+- **Never schedule a wakeup on a terminal stop** — NEEDS-INPUT and CI-BLOCKED wait for a human.
+- **Never let a sub-agent read your context** — pass everything it needs through its prompt template.
+- **Never carry `ciFixes` across stages** — it resets to 0 when Review begins.
 
 ## Integration
 
-| Skill | Phase | Model |
+| Skill | Stage | Model |
 |-------|-------|-------|
-| `openspec-auto-triage` sub-agent | Phase 1 | haiku |
-| `superpowers:using-git-worktrees` | Phase 2 | — |
-| `openspec-auto-explore` sub-agent | Phase 3 | sonnet |
-| `opsx:propose` | Phase 4 | — |
-| `openspec-auto-implement` sub-agent | Phase 5 | sonnet |
-| `openspec-auto-review` sub-agent | Phase 6 | opus |
-| `superpowers:finishing-a-development-branch` | Phase 7 | — |
-| `opsx:archive` | Phase 7 | — |
+| `openspec-auto-triage` sub-agent | Triage | haiku |
+| `superpowers:using-git-worktrees` | Set up workspace | — |
+| `openspec-auto-explore` sub-agent | Explore | sonnet |
+| `opsx:propose` | Propose | — |
+| `openspec-auto-implement` sub-agent | Implement | sonnet |
+| `openspec-auto-review` sub-agent | Review | opus |
+| `superpowers:finishing-a-development-branch` | Wrap up | — |
+| `opsx:archive` | Wrap up | — |
