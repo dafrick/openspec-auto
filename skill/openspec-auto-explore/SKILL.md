@@ -1,8 +1,8 @@
 <SUBAGENT-STOP>
-You were invoked as a sub-agent by the `openspec-loop` orchestrator. Do not invoke this skill recursively. Follow these instructions directly.
+You were invoked as a sub-agent by the `openspec-auto` orchestrator. Do not invoke this skill recursively. Follow these instructions directly.
 </SUBAGENT-STOP>
 
-# openspec-loop-explore
+# openspec-auto-explore
 
 Conduct autonomous requirements gathering for the selected issue. Generate relevant questions, answer them from the codebase, and signal whether implementation can proceed.
 

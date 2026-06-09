@@ -1,8 +1,8 @@
 <SUBAGENT-STOP>
-You were invoked as a sub-agent by the `openspec-loop` orchestrator. Do not invoke this skill recursively. Follow these instructions directly.
+You were invoked as a sub-agent by the `openspec-auto` orchestrator. Do not invoke this skill recursively. Follow these instructions directly.
 </SUBAGENT-STOP>
 
-# openspec-loop-review
+# openspec-auto-review
 
 Perform an independent code review of the implementation PR. Derive all context from the PR — no prior conversation history.
 

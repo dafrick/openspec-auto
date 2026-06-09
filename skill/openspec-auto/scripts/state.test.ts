@@ -25,13 +25,13 @@ describe("write-state", () => {
 
   test("writes state.json with correct contents", () => {
     writeState(VALID_STATE, tmp);
-    const raw = readFileSync(join(tmp, ".openspec-loop", "state.json"), "utf8");
+    const raw = readFileSync(join(tmp, ".openspec-auto", "state.json"), "utf8");
     assert.deepEqual(JSON.parse(raw), VALID_STATE);
   });
 
-  test("creates .openspec-loop directory if absent", () => {
+  test("creates .openspec-auto directory if absent", () => {
     writeState(VALID_STATE, tmp);
-    const raw = readFileSync(join(tmp, ".openspec-loop", "state.json"), "utf8");
+    const raw = readFileSync(join(tmp, ".openspec-auto", "state.json"), "utf8");
     assert.ok(raw.length > 0);
   });
 
@@ -44,7 +44,7 @@ describe("write-state", () => {
     const bad = { ...VALID_STATE, phase: "NOPE" } as unknown as AgentState;
     try { writeState(bad, tmp); } catch { /* expected */ }
     let exists = false;
-    try { readFileSync(join(tmp, ".openspec-loop", "state.json")); exists = true; } catch { /* expected */ }
+    try { readFileSync(join(tmp, ".openspec-auto", "state.json")); exists = true; } catch { /* expected */ }
     assert.equal(exists, false);
   });
 
@@ -65,15 +65,15 @@ describe("read-state", () => {
   });
 
   test("throws on invalid JSON", () => {
-    mkdirSync(join(tmp, ".openspec-loop"), { recursive: true });
-    writeFileSync(join(tmp, ".openspec-loop", "state.json"), "not json");
+    mkdirSync(join(tmp, ".openspec-auto"), { recursive: true });
+    writeFileSync(join(tmp, ".openspec-auto", "state.json"), "not json");
     assert.throws(() => readState(tmp), /invalid JSON/);
   });
 
   test("throws on invalid phase in file", () => {
-    mkdirSync(join(tmp, ".openspec-loop"), { recursive: true });
+    mkdirSync(join(tmp, ".openspec-auto"), { recursive: true });
     writeFileSync(
-      join(tmp, ".openspec-loop", "state.json"),
+      join(tmp, ".openspec-auto", "state.json"),
       JSON.stringify({ ...VALID_STATE, phase: "BOGUS" })
     );
     assert.throws(() => readState(tmp), /invalid phase/i);

@@ -1,8 +1,8 @@
 <SUBAGENT-STOP>
-You were invoked as a sub-agent by the `openspec-loop` orchestrator. Do not invoke this skill recursively. Follow these instructions directly.
+You were invoked as a sub-agent by the `openspec-auto` orchestrator. Do not invoke this skill recursively. Follow these instructions directly.
 </SUBAGENT-STOP>
 
-# openspec-loop-implement
+# openspec-auto-implement
 
 Implement tasks from the OpenSpec task list using TDD, with CI monitoring and attempt caps.
 

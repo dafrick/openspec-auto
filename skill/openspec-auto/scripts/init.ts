@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { input } from "@inquirer/prompts";
 import type { LoopConfig } from "./config-types.js";
 
-const CONFIG_FILE = ".openspec-loop.json";
-const GITIGNORE_ENTRIES = [".openspec-loop.json", ".openspec-loop/"];
+const CONFIG_FILE = ".openspec-auto.json";
+const GITIGNORE_ENTRIES = [".openspec-auto.json", ".openspec-auto/"];
 const REQUIRED_SKILLS = ["opsx:explore", "opsx:propose", "opsx:apply", "opsx:archive"];
 
 function inferReviewer(): string {
@@ -48,11 +48,11 @@ function updateGitignore(cwd: string): void {
 }
 
 async function main(): Promise<void> {
-  console.log("openspec-loop init\n");
+  console.log("openspec-auto init\n");
 
   if (!checkGhCli()) {
     console.warn(
-      "Warning: `gh` CLI not found on PATH. Install and authenticate it before using openspec-loop.\n"
+      "Warning: `gh` CLI not found on PATH. Install and authenticate it before using openspec-auto.\n"
     );
   }
 
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
 
   updateGitignore(cwd);
 
-  console.log("\nSetup complete. Run your loop with: /loop /openspec-loop");
+  console.log("\nSetup complete. Run your loop with: /loop /openspec-auto");
 }
 
 main().catch((err) => {

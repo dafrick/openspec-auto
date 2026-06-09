@@ -2,14 +2,14 @@
 This skill manages the orchestrator loop. If you were dispatched as a sub-agent for a specific sub-task (triage, explore, implement, review), stop here — you have your own skill file. This skill is for the main orchestrator only.
 </SUBAGENT-STOP>
 
-# openspec-loop
+# openspec-auto
 
 ## Script convention
 
 Scripts live inside this skill's directory. Set `OSL` before any script call:
 
 ```bash
-OSL=~/.claude/skills/openspec-loop
+OSL=~/.claude/skills/openspec-auto
 ```
 
 Then invoke scripts as:
@@ -19,7 +19,7 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 
 First-time setup (run once after cloning):
 ```bash
-OSL=~/.claude/skills/openspec-loop && cd $OSL && npm install
+OSL=~/.claude/skills/openspec-auto && cd $OSL && npm install
 ```
 
 Autonomous GitHub issue lifecycle agent. On each invocation, resolve one issue end-to-end: triage → explore → propose → implement → review → wrap-up.
@@ -62,14 +62,14 @@ stateDiagram-v2
 
 **Check config first:**
 ```bash
-cat .openspec-loop.json
+cat .openspec-auto.json
 ```
 If absent or invalid, stop:
-> Config not found. Run `OSL=~/.claude/skills/openspec-loop && $OSL/node_modules/.bin/tsx $OSL/scripts/init.ts` to set up.
+> Config not found. Run `OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/init.ts` to set up.
 
 **Read local state:**
 ```bash
-OSL=~/.claude/skills/openspec-loop && $OSL/node_modules/.bin/tsx $OSL/scripts/read-state.ts
+OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/read-state.ts
 ```
 
 - If state.json exists and `blocked: false` and phase is not `COMPLETE` → resume from that phase (jump to Phase N)
@@ -94,7 +94,7 @@ Invoke the triage sub-agent:
 ```js
 Agent({
   description: "Issue triage",
-  prompt: `You are the openspec-loop-triage sub-agent. Invoke your skill at skill/openspec-loop-triage/SKILL.md and select the best issue to implement in the repository at <repo-path>.`,
+  prompt: `You are the openspec-auto-triage sub-agent. Invoke your skill at skill/openspec-auto-triage/SKILL.md and select the best issue to implement in the repository at <repo-path>.`,
   subagent_type: "claude"
 })
 ```
@@ -135,12 +135,12 @@ Read the PR number from the output.
 
 Initialize state.json:
 ```bash
-OSL=~/.claude/skills/openspec-loop && $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '{"phase":"WORKSPACE","issue":<N>,"prNumber":<PR>,"branch":"<branch>","changeName":"","ciFixes":0,"blocked":false}'
+OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '{"phase":"WORKSPACE","issue":<N>,"prNumber":<PR>,"branch":"<branch>","changeName":"","ciFixes":0,"blocked":false}'
 ```
 
 Sync state to PR:
 ```bash
-OSL=~/.claude/skills/openspec-loop && $OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts <PR>
+OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts <PR>
 ```
 
 ---
@@ -154,7 +154,7 @@ Invoke the explore sub-agent:
 ```js
 Agent({
   description: "Requirements gathering",
-  prompt: `You are the openspec-loop-explore sub-agent. Invoke your skill at skill/openspec-loop-explore/SKILL.md.
+  prompt: `You are the openspec-auto-explore sub-agent. Invoke your skill at skill/openspec-auto-explore/SKILL.md.
 
 Issue #<N>: <title>
 <issue body>
@@ -213,7 +213,7 @@ Invoke the implement sub-agent:
 ```js
 Agent({
   description: "Implementation",
-  prompt: `You are the openspec-loop-implement sub-agent. Invoke your skill at skill/openspec-loop-implement/SKILL.md.
+  prompt: `You are the openspec-auto-implement sub-agent. Invoke your skill at skill/openspec-auto-implement/SKILL.md.
 
 PR: #<PR>
 Branch: <branch>
@@ -249,7 +249,7 @@ Invoke the review sub-agent:
 ```js
 Agent({
   description: "Code review",
-  prompt: `You are the openspec-loop-review sub-agent. Invoke your skill at skill/openspec-loop-review/SKILL.md.
+  prompt: `You are the openspec-auto-review sub-agent. Invoke your skill at skill/openspec-auto-review/SKILL.md.
 
 PR: #<PR>
 Working directory: <repo-path>`,
@@ -316,8 +316,8 @@ Output a clear message explaining why the loop stopped.
 ## State update protocol
 
 After every phase transition:
-1. `OSL=~/.claude/skills/openspec-loop && $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<json>'`
-2. `OSL=~/.claude/skills/openspec-loop && $OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts <PR>` (when a PR exists)
+1. `OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<json>'`
+2. `OSL=~/.claude/skills/openspec-auto && $OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts <PR>` (when a PR exists)
 
 Valid phase values: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `COMPLETE`, `CI-BLOCKED`
 

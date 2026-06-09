@@ -2,7 +2,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type AgentState, VALID_PHASES } from "./types.js";
 
-const STATE_DIR = ".openspec-loop";
+const STATE_DIR = ".openspec-auto";
 const STATE_FILE = join(STATE_DIR, "state.json");
 
 export function writeState(state: AgentState, cwd = process.cwd()): void {

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type AgentState, VALID_PHASES } from "./types.js";
 
-const STATE_FILE = join(".openspec-loop", "state.json");
+const STATE_FILE = join(".openspec-auto", "state.json");
 
 export function readState(cwd = process.cwd()): AgentState {
   const file = join(cwd, STATE_FILE);
