@@ -37,7 +37,7 @@
 - [ ] 5.1 Create `skill/openspec-loop-explore/SKILL.md` with `<SUBAGENT-STOP>` guard
 - [ ] 5.2 Write autonomous Q&A section: generate questions by issue type (bug vs feature), answer each from codebase
 - [ ] 5.3 Write blocking-question detection section: definition, examples (breaking change, API ambiguity), escalation signal via `## Blocking Questions` section
-- [ ] 5.4 Write output contract section: status `EXPLORED` (no blocking questions, proceed) or `BLOCKED` (blocking questions listed in prose, orchestrator enters NEEDS-INPUT)
+- [ ] 5.4 Write output contract section: status `EXPLORED` (no blocking questions, proceed) or `EXPLORED_WITH_CONCERNS` (blocking questions listed in prose, orchestrator enters NEEDS-INPUT)
 - [ ] 5.5 Write investigation scope section: start from issue entry point, no full-repo crawl
 
 ## 6. Sub-Agent Skill: Implement

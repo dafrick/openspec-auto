@@ -91,8 +91,8 @@ Phases 1 (Triage), 3 (Explore), 5 (Implement), and 6 (Review) SHALL be executed 
 - **WHEN** `openspec-loop-explore` returns `**Status:** EXPLORED`
 - **THEN** the main loop SHALL proceed to Phase 4 (Propose)
 
-#### Scenario: Explore sub-agent — BLOCKED
-- **WHEN** `openspec-loop-explore` returns `**Status:** BLOCKED`
+#### Scenario: Explore sub-agent — EXPLORED_WITH_CONCERNS
+- **WHEN** `openspec-loop-explore` returns `**Status:** EXPLORED_WITH_CONCERNS`
 - **THEN** the main loop SHALL read the blocking questions from the prose
 - **THEN** it SHALL post the questions to the PR and enter NEEDS-INPUT state
 

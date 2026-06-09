@@ -15,17 +15,17 @@ The `openspec-loop-explore` sub-agent SHALL generate a set of relevant questions
 
 ---
 
-### Requirement: Explore sub-agent reports status EXPLORED or BLOCKED
-The sub-agent's output SHALL begin with a status line. Status `EXPLORED` means no blocking questions were found and implementation can proceed. Status `BLOCKED` means blocking questions are present and require human input.
+### Requirement: Explore sub-agent reports status EXPLORED or EXPLORED_WITH_CONCERNS
+The sub-agent's output SHALL begin with a status line. Status `EXPLORED` means no blocking questions were found and implementation can proceed. Status `EXPLORED_WITH_CONCERNS` means blocking questions are present and require human input.
 
 #### Scenario: No blocking questions — EXPLORED
 - **WHEN** the explore sub-agent completes without finding questions requiring human input
 - **THEN** its output SHALL begin with `**Status:** EXPLORED`
 - **THEN** the main loop SHALL proceed to Phase 4 (Propose)
 
-#### Scenario: Blocking questions present — BLOCKED
+#### Scenario: Blocking questions present — EXPLORED_WITH_CONCERNS
 - **WHEN** the explore sub-agent identifies one or more questions that require human input
-- **THEN** its output SHALL begin with `**Status:** BLOCKED`
+- **THEN** its output SHALL begin with `**Status:** EXPLORED_WITH_CONCERNS`
 - **THEN** its output SHALL list the blocking questions in prose so the orchestrator can post them to the PR
 - **THEN** the main loop SHALL enter NEEDS-INPUT state
 
@@ -38,8 +38,8 @@ The main loop SHALL read the explore sub-agent's status code to determine whethe
 - **WHEN** the explore sub-agent returns `**Status:** EXPLORED`
 - **THEN** the main loop SHALL proceed to Phase 4 (Propose)
 
-#### Scenario: Orchestrator reads BLOCKED
-- **WHEN** the explore sub-agent returns `**Status:** BLOCKED`
+#### Scenario: Orchestrator reads EXPLORED_WITH_CONCERNS
+- **WHEN** the explore sub-agent returns `**Status:** EXPLORED_WITH_CONCERNS`
 - **THEN** the main loop SHALL read the blocking questions from the prose output
 - **THEN** it SHALL post the questions to the PR under a `## Blocking Questions` heading and enter NEEDS-INPUT
 

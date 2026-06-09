@@ -90,7 +90,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 | Sub-agent | Status codes |
 |-----------|-------------|
 | `openspec-loop-triage` | `SELECTED`, `NO_ELIGIBLE` |
-| `openspec-loop-explore` | `EXPLORED`, `BLOCKED` |
+| `openspec-loop-explore` | `EXPLORED`, `EXPLORED_WITH_CONCERNS` |
 | `openspec-loop-implement` | `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `CI_BLOCKED` |
 | `openspec-loop-review` | `APPROVED`, `CHANGES_REQUESTED`, `CI_BLOCKED` |
 
