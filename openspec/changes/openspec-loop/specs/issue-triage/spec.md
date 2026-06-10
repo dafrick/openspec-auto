@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
-### Requirement: Triage builds an issue-keyed table, ordered by recency
-The triage sub-agent SHALL build a table keyed by open issue, ordered most-recently-updated first, joining each issue to its associated agent PR (a PR whose body references `#N` or whose branch is `fix/N-*`/`feat/N-*`) and that PR's agent-state (phase, blocked). The issue is the entry point; the joined PR is how in-flight work is discovered.
+### Requirement: Triage surveys via a one-shot script, ordered by recency
+The triage sub-agent SHALL obtain its table from the `survey.ts` script, which returns open issues (most-recently-updated first), each joined to its associated agent PR and that PR's agent-state. The join uses GitHub's linked-PR graph (the PRs that close the issue), so triage does not fetch or join lists itself.
 
-#### Scenario: Table joins issues to their agent PRs
-- **WHEN** triage surveys the repository
-- **THEN** it SHALL fetch open issues (with `updatedAt`) and open PRs (with body and comments) and join them by issue number
-- **THEN** it SHALL order the table most-recently-updated first
+#### Scenario: Survey returns the joined table
+- **WHEN** triage runs `survey.ts`
+- **THEN** it SHALL receive rows of `{ issue, title, body, updatedAt, labels, comments, agentPr }` ordered most-recently-updated first
+- **THEN** `agentPr` SHALL carry the linked agent PR's number, phase, blocked, and comments, or be null
 
 ---
 

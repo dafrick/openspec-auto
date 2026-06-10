@@ -142,6 +142,7 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 
 | Script | Purpose |
 |--------|---------|
+| `survey.ts` | One-shot GitHub survey → issue table joined to each issue's agent PR + agent-state |
 | `read-state.ts` | Read and validate `state.json` |
 | `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) |
 | `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place |
