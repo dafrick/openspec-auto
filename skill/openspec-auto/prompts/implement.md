@@ -7,7 +7,7 @@ Change: {{CHANGE_NAME}}
 
 {{CHANGE_REQUEST}}
 
-`{{CHANGE_REQUEST}}` is empty on the first run. On a rerun it holds the changes to make — either code-review's blocking findings, or a human's requested-changes review on an `IN-REVIEW` PR. Address those — fix the code (and update `tasks.md` or the change specs if a fix warrants it) rather than re-running the whole task list. The orchestrator reset `ciFixes` to 0 for this increment.
+`{{CHANGE_REQUEST}}` is empty on the first run. On a rerun it holds the changes to make — either code-review's blocking findings, or a human's requested-changes review on an `IN-REVIEW` PR. **Spec first:** decide whether the change alters the intended behavior or plan; if so, update the proposal/specs/tasks under `openspec/changes/{{CHANGE_NAME}}/` *before* touching code, so spec and code never drift. Then implement to match — don't re-run the whole task list. The orchestrator reset `ciFixes` to 0 for this increment.
 
 The change spec under `openspec/changes/{{CHANGE_NAME}}/` is the contract; work from its `tasks.md`.
 
@@ -39,6 +39,9 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<updated-json>'
 ```
 **Status:** DONE
 Completed tasks: <N>. All tests pass and CI is green.
+
+Summary:
+<a short summary of what was implemented — the orchestrator writes this to the PR description>
 ```
 
 ```

@@ -40,7 +40,7 @@ Bring-up SHALL read only configuration. Discovery of resumable in-flight work SH
 ---
 
 ### Requirement: PR description carries the status block on top and the latest summary below
-The PR description SHALL hold two regions: the agent-status block at the top (an `## Agent Status` table plus an `<!-- agent-state: {...} -->` marker, rendered from `state.json`) and the latest summary below it — the discovery output after Explore, replaced by a post-proposal summary once Propose completes. The description SHALL be overwritten as the run progresses — it always reflects the current understanding, never an accreting log.
+The PR description SHALL hold two regions: the agent-status block at the top (an `## Agent Status` table plus an `<!-- agent-state: {...} -->` marker, rendered from `state.json`) and the latest summary below it — the discovery output after Explore, replaced by a post-proposal summary once Propose completes, replaced by a post-implementation summary once Implement completes. The description SHALL be overwritten as the run progresses — it always reflects the current understanding, never an accreting log.
 
 #### Scenario: Status block synced at each phase transition
 - **WHEN** the orchestrator updates `state.json` to a new phase
@@ -54,6 +54,10 @@ The PR description SHALL hold two regions: the agent-status block at the top (an
 #### Scenario: Proposal summary replaces the discovery
 - **WHEN** the propose sub-agent returns `PROPOSED` with a summary
 - **THEN** the orchestrator SHALL call `write-discovery` to overwrite the lower region with the proposal summary
+
+#### Scenario: Implementation summary replaces the proposal summary
+- **WHEN** the implement sub-agent returns `DONE` with a summary
+- **THEN** the orchestrator SHALL call `write-discovery` to overwrite the lower region with the implementation summary
 
 #### Scenario: sync-pr-state is idempotent
 - **WHEN** `sync-pr-state` is called with the same state.json contents twice

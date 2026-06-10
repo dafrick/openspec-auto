@@ -92,7 +92,11 @@ The sub-agent SHALL implement tasks in the order specified in `tasks.md` and che
 ---
 
 ### Requirement: Implement is rerunnable with a change request
-The implement sub-agent SHALL accept an optional change request and, when present, address it rather than re-running the full task list. The change request may come from code-review's blocking findings or from a human's requested-changes review on an `IN-REVIEW` PR.
+The implement sub-agent SHALL accept an optional change request and, when present, address it rather than re-running the full task list. The change request may come from code-review's blocking findings or from a human's requested-changes review on an `IN-REVIEW` PR. When the change request alters the intended behavior or plan, the sub-agent SHALL update the spec (proposal/specs/tasks) **before** changing code, so spec and code stay in sync.
+
+#### Scenario: Spec updated before code when intent changes
+- **WHEN** a change request alters the intended behavior
+- **THEN** the sub-agent SHALL update the change's spec artifacts first, then implement to match
 
 #### Scenario: Rerun applies code-review's blocking findings
 - **WHEN** the orchestrator reruns Implement with code-review's blocking findings as the change request

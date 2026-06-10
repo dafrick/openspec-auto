@@ -61,7 +61,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Decision**: The loop carries **no state between runs**. The durable, cross-run record is the **PR's `<!-- agent-state: {...} -->` marker** (phase, issue, prNumber, branch, changeName, ciFixes, blocked). A new run discovers in-flight work by surveying open PRs (Triage), not by reading any local file. `state.json` under `.openspec-auto/` is only a **within-run cache** — created at Workspace (fresh) or reconstructed from the PR marker (resume), mirrored to the marker at every transition, and deleted at Teardown.
 
-The **PR description** has two regions: the **agent-status block on top** (`## Agent Status` table + marker) and the **latest summary below it** — the discovery output after Explore, replaced by a post-proposal summary once Propose completes (see D5). It is overwritten as the run progresses, so it always shows the current picture — never an accreting log.
+The **PR description** has two regions: the **agent-status block on top** (`## Agent Status` table + marker) and the **latest summary below it** — the discovery output after Explore, then a post-proposal summary after Propose, then a post-implementation summary after Implement (see D5). It is overwritten as the run progresses, so it always shows the current picture — never an accreting log.
 
 The **PR comments** hold the dialogue: blocking questions the agent raises, and the human's answers. (The description is *state*, the comments are *conversation*.)
 

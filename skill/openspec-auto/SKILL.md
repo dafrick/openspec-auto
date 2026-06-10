@@ -4,7 +4,7 @@ Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper tr
 
 **Why an orchestrator + sub-agents:** Each expensive stage runs as a fresh sub-agent with its own context window. You — the orchestrator — hold only the state machine and the result each sub-agent returns. Sub-agents never inherit your history; you build their context from a prompt template. This prevents the instruction drift that breaks long single-context runs.
 
-**Core principle:** One issue per invocation, and the loop carries no state between runs. **The PR is the durable record:** its `<!-- agent-state: … -->` marker is how the next run discovers in-flight work, the status block + latest summary (discovery output, then a post-proposal summary) show where things stand, and the comments hold the dialogue (blocking questions and the human's answers). `state.json` is only a within-run cache — created when a workspace is set up, mirrored to the PR marker at each transition, and torn down at the end of the run. **Only the orchestrator writes to the PR** — sub-agents return their output and the orchestrator updates the description and posts comments. Each stage writes its phase, then branches on the sub-agent's `**Status:**` line.
+**Core principle:** One issue per invocation, and the loop carries no state between runs. **The PR is the durable record:** its `<!-- agent-state: … -->` marker is how the next run discovers in-flight work, the status block + latest summary (discovery output, then a post-proposal summary, then a post-implementation summary) show where things stand, and the comments hold the dialogue (blocking questions and the human's answers). `state.json` is only a within-run cache — created when a workspace is set up, mirrored to the PR marker at each transition, and torn down at the end of the run. **Only the orchestrator writes to the PR** — sub-agents return their output and the orchestrator updates the description and posts comments. Each stage writes its phase, then branches on the sub-agent's `**Status:**` line.
 
 **Continuous execution:** Don't check in with your human between stages. Run the whole machine. Stop only on the terminal conditions in **Stopping Conditions** — otherwise keep going.
 
@@ -70,7 +70,7 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 | propose   | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
 | proposal-review | `APPROVED` | → **Implement** |
 | proposal-review | `CHANGES_REQUESTED` | Run the **review cycle** (assess severity) against Propose |
-| implement | `DONE` | → **Code review** |
+| implement | `DONE` | Write the implementation summary to the PR description → **Code review** |
 | implement | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
 | implement | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, post the summary comment, Teardown, no wakeup |
 | code-review | `APPROVED` | → **Wrap up** |
@@ -101,7 +101,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, `changeName`, and the discovery output. It runs `opsx:propose` (using that change name), commits and pushes the artifacts, and returns a proposal summary. On `PROPOSED`: write the summary into the PR description with `write-discovery.ts` (overwriting the discovery — the description now reflects the post-proposal understanding), then dispatch the proposal-review sub-agent (`prompts/proposal-review.md`) with the issue ref, PR, and `changeName` for an independent, fresh-context check. Handle its verdict per **Review cycles** (`APPROVED`/minor → Implement; blocking → rerun Propose). `BLOCKED` (from Propose) → Teardown.
 
-**Implement.** Reset `ciFixes` to 0, then dispatch the implement sub-agent (`prompts/implement.md`) with `changeName`, PR, and branch (on a rerun, the code-review blocking findings as `{{CHANGE_REQUEST}}`). `DONE` → Code review; `BLOCKED`/`CI_BLOCKED` → Teardown.
+**Implement.** Reset `ciFixes` to 0, then dispatch the implement sub-agent (`prompts/implement.md`) with `changeName`, PR, and branch (on a rerun, the change request — code-review's blocking findings or a human's requested changes — as `{{CHANGE_REQUEST}}`). On `DONE`: write its implementation summary into the PR description with `write-discovery.ts` (overwriting the proposal summary — the description now reflects what was built), then → Code review. `BLOCKED`/`CI_BLOCKED` → Teardown.
 
 **Code review.** Mark the PR ready (`gh pr ready`), then dispatch the code-review sub-agent (`prompts/code-review.md`) with the PR and `changeName` (the spec is its basis — no issue needed). It judges the current diff and returns findings — it changes nothing. Handle its verdict per **Review cycles** (`APPROVED`/minor → Wrap up; blocking → rerun Implement).
 
@@ -144,7 +144,7 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 | `read-state.ts` | Read and validate `state.json` |
 | `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) |
 | `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place |
-| `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, the latest summary (discovery, then proposal summary) below |
+| `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, the latest summary (discovery → proposal → implementation) below |
 | `setup-workspace.ts <issue> <branch> <title>` | Branch (off the config default branch) + empty commit + draft PR + initial state |
 
 **State update protocol:** on every stage transition, `write-state.ts` first, then `sync-pr-state.ts <PR>`. First-time setup: `cd $OSL && npm install`.
