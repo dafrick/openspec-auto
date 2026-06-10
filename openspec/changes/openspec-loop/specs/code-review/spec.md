@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
-### Requirement: Code review is stateless and changes nothing
-The `code-review` sub-agent SHALL read the current state of the PR (description, diff, linked issue, change artifacts) and return a judgment. It SHALL NOT commit, push, fix, watch CI, or write to the PR. Fixes are applied by a rerun of `implement`, not by the reviewer.
+### Requirement: Code review is stateless and judges the diff against the spec
+The `code-review` sub-agent SHALL read the current PR diff and the change spec (`openspec/changes/<changeName>/`) and judge the diff against that spec — not against the original issue (issue↔spec fidelity was settled at proposal-review). It SHALL NOT commit, push, fix, watch CI, or write to the PR. Fixes are applied by a rerun of `implement`, not by the reviewer.
 
-#### Scenario: Reviewer spawned with current state only
+#### Scenario: Reviewer spawned with PR and change name only
 - **WHEN** Code review begins
-- **THEN** the orchestrator SHALL invoke the code-review sub-agent via the `Agent` tool with the PR number and change name
-- **THEN** the sub-agent SHALL derive all context from the current PR and artifacts
+- **THEN** the orchestrator SHALL invoke the code-review sub-agent via the `Agent` tool with the PR number and change name (no issue ref)
+- **THEN** the sub-agent SHALL judge the diff against the change spec
 
 #### Scenario: Reviewer makes no changes
 - **WHEN** the code-review sub-agent finishes
@@ -16,10 +16,10 @@ The `code-review` sub-agent SHALL read the current state of the PR (description,
 ---
 
 ### Requirement: Findings are tagged by scope and severity
-The code-review sub-agent SHALL tag each finding by scope (in-scope, out-of-scope, or unclear) and by severity (blocking or minor).
+The code-review sub-agent SHALL tag each finding by scope (in-scope = within the change's spec/tasks, out-of-scope = beyond what the spec covers, or unclear = design-level) and by severity (blocking or minor).
 
 #### Scenario: Blocking in-scope finding
-- **WHEN** a finding is in-scope and the change is incorrect or incomplete without it
+- **WHEN** a finding is within the change's spec and the implementation is incorrect or incomplete without it
 - **THEN** the sub-agent SHALL tag it blocking
 
 #### Scenario: Minor finding
