@@ -3,6 +3,7 @@ export type Phase =
   | "EXPLORE"
   | "NEEDS-INPUT"
   | "PROPOSE"
+  | "PROPOSAL_REVIEW"
   | "IMPLEMENT"
   | "REVIEW"
   | "IN-REVIEW"
@@ -13,6 +14,7 @@ export const VALID_PHASES: Phase[] = [
   "EXPLORE",
   "NEEDS-INPUT",
   "PROPOSE",
+  "PROPOSAL_REVIEW",
   "IMPLEMENT",
   "REVIEW",
   "IN-REVIEW",

@@ -15,21 +15,13 @@ Discovery output:
 
 You have the issue title and the discovery output — enough to write the change. If you need the full issue body, the PR description, or the comments, fetch them with `gh`; don't assume everything is inline.
 
-## 1 — Greenfield or not?
+## 1 — Generate or revise the change
 
-Check `openspec/specs/` for existing capability specs covering this area. If specs already govern it, your change MODIFIES them (delta specs); if not, it ADDS new capabilities. Shape the artifacts accordingly.
+**First run** (`{{CHANGE_REQUEST}}` empty): invoke `opsx:propose` using the change name `{{CHANGE_NAME}}`, grounded in the discovery output — its Problem and Findings drive the proposal's "why", its Approach drives the design decisions, its scope boundaries drive what the specs and tasks cover. Do not re-derive requirements from scratch; the discovery is the requirements record. Make clear that the implementation plan needs to follow test-driven development.
 
-## 2 — Generate or revise the change
+**Rerun** (`{{CHANGE_REQUEST}}` present): the change already exists — do **not** invoke `opsx:propose`. Edit the artifacts under `openspec/changes/{{CHANGE_NAME}}/` directly to address the requested changes.
 
-**First run** (`{{CHANGE_REQUEST}}` empty): invoke `opsx:propose` using the change name `{{CHANGE_NAME}}`, grounded in the discovery output — its Problem and Findings drive the proposal's "why", its Approach drives the design decisions, its scope boundaries drive what the specs and tasks cover. Do not re-derive requirements from scratch; the discovery is the requirements record.
-
-**Rerun** (`{{CHANGE_REQUEST}}` present): the change already exists — do **not** invoke `opsx:propose`. Edit the artifacts under `openspec/changes/{{CHANGE_NAME}}/` directly to resolve the blocking findings.
-
-## 3 — Confirm the tasks are implementable, test-first
-
-Re-read `tasks.md`: each task should be concrete, ordered, and verifiable. Plan the tasks for **test-driven development** — each behavioral task should call for its test first, then the implementation — so Implement can follow TDD straight off the list. Tighten anything vague.
-
-## 4 — Commit and push
+## 2 — Commit and push
 
 Stage the artifacts under `openspec/changes/{{CHANGE_NAME}}/`, commit as `chore(openspec): propose {{CHANGE_NAME}} for issue #{{ISSUE}}`, and push to the branch.
 

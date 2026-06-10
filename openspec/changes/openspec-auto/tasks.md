@@ -77,7 +77,7 @@
 - [x] 9.3 Write Install section: clone repo, `npm install`, `npx tsx scripts/init.ts`
 - [x] 9.4 Write Usage section: `/loop /openspec-auto` with explanation of why slash command form is required
 - [x] 9.5 Write Configuration section: what `.openspec-auto.json` contains, how to re-run init
-- [x] 9.6 Write Limitations section: designed for Claude Code only, requires OpenSpec CLI, one issue per iteration
+- [x] 9.6 Write Limitations section: requires OpenSpec CLI and skills, one issue per iteration
 
 ## 10. Verification
 

@@ -1,8 +1,8 @@
 ## Context
 
-`openspec-auto` is a new repository containing Claude Code skill files and TypeScript tooling that implements an autonomous GitHub issue lifecycle agent. It has no prior codebase; all decisions here are greenfield. The system coordinates with the OpenSpec CLI and skills ecosystem, the `gh` CLI, and the Claude Code harness (worktree tools, Skill invocation, Agent spawning).
+`openspec-auto` is a new repository containing skill files and TypeScript tooling that implements an autonomous GitHub issue lifecycle agent for agentic software engineering. It has no prior codebase; all decisions here are greenfield. The system coordinates with the OpenSpec CLI and skills ecosystem, the `gh` CLI, and the agentic coding harness (worktree tools, Skill invocation, Agent spawning).
 
-The design is informed by two constraints: (1) the Claude Code `/loop` mechanism re-reads the invoking skill on each iteration — so the main skill must be a slash command, not a file path; (2) context compression causes instruction drift across long runs — so expensive stages must run as isolated sub-agents with their own prompt files.
+The design is informed by two constraints: (1) the `/loop` mechanism re-reads the invoking skill on each iteration — so the main skill must be a slash command, not a file path; (2) context compression causes instruction drift across long runs — so expensive stages must run as isolated sub-agents with their own prompt files.
 
 ## Goals / Non-Goals
 

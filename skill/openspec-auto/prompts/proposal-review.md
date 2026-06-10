@@ -12,7 +12,7 @@ Read the issue first (`gh issue view {{ISSUE}} --json title,body,comments`) so y
 - **Proposal** — does it solve the issue, with a clear "why" and bounded scope?
 - **Design** — are the decisions sound and consistent with the codebase?
 - **Specs** — do the requirements and scenarios cover the proposal?
-- **Tasks** — is each task concrete, ordered, and verifiable?
+- **Tasks** — is each task concrete, ordered, and verifiable? Does it follow test-driven development?
 
 Form your own view from the artifacts; do not assume the proposal is correct because it exists.
 

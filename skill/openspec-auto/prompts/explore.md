@@ -23,7 +23,7 @@ Generate the questions that matter for this issue type and answer each from the 
 
 **Bug** — cover: reproduction path; expected vs actual behavior; affected code areas; **whether existing specs cover this behavior and what the specs say the desired behavior is**; related edge cases and tests.
 
-**Feature** — cover: underlying user intent; affected public API / CLI / interfaces; integration points; possible regressions; scope boundaries (what's explicitly out); **whether this is a minor change (add-on / local refactor) or a major one (architectural rework, new cross-cutting design)**.
+**Feature** — cover: underlying user intent; affected public API / CLI / interfaces; user experience, integration points; possible regressions; scope boundaries (what's explicitly out); **whether this is a minor change (add-on / local refactor) or a major one (architectural rework, new cross-cutting design)**.
 
 ## 3 — Synthesize the discovery output
 

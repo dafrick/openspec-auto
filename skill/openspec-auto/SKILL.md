@@ -39,20 +39,20 @@ flowchart TD
     S -->|idle / auth expired| L[Wake 6h]
 ```
 
-Stage names match the `phase` they write to `state.json`: **Workspace → `WORKSPACE`**, **Explore → `EXPLORE`**, **Propose → `PROPOSE`**, **Implement → `IMPLEMENT`**, **Code review → `REVIEW`**, **Wrap up → `IN-REVIEW`** (handed to the human). The failure exits write `NEEDS-INPUT` or `CI-BLOCKED`. Bring-up, Triage, and Teardown run before or after the PR exists and write no phase.
+Stage names match the `phase` they write to `state.json`: **Workspace → `WORKSPACE`**, **Explore → `EXPLORE`**, **Propose → `PROPOSE`**, **Proposal review → `PROPOSAL_REVIEW`**, **Implement → `IMPLEMENT`**, **Code review → `REVIEW`**, **Wrap up → `IN-REVIEW`** (handed to the human). The failure exits write `NEEDS-INPUT` or `CI-BLOCKED`. Bring-up, Triage, and Teardown run before or after the PR exists and write no phase.
 
 ## Model Selection
 
-Dispatch each sub-agent with the cheapest model that fits the work:
+Dispatch each sub-agent with the lightest model that fits the work:
 
 | Sub-agent | Model | Why |
 |-----------|-------|-----|
-| triage    | haiku  | Mechanical fetch + filter, no design judgment |
-| explore   | sonnet | Codebase reading and requirement judgment |
-| propose   | sonnet | Structures the discovery into OpenSpec artifacts |
-| proposal-review | opus | Independent judgment on whether the proposal is sound |
-| implement | sonnet | Integration work, coordinates the change |
-| code-review | opus | Design judgment and scope/severity calls — highest stakes |
+| triage    | fast/light | Mechanical fetch + filter, no design judgment |
+| explore   | capable | Codebase reading and requirement judgment |
+| propose   | capable | Structures the discovery into OpenSpec artifacts |
+| proposal-review | most capable | Independent judgment on whether the proposal is sound |
+| implement | capable | Integration work, coordinates the change |
+| code-review | most capable | Design judgment and scope/severity calls — highest stakes |
 
 ## Handling Sub-Agent Status
 
@@ -99,7 +99,9 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → **set the `changeName` to the branch slug** (the kebab slug chosen at Triage, so the change and branch stay paired), record it in `state.json`, and proceed to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, and park (Teardown, no wakeup). The `changeName` is passed to every stage from here on so they all know where to look (`openspec/changes/<changeName>/`).
 
-**Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, `changeName`, and the discovery output. It runs `opsx:propose` (using that change name), commits and pushes the artifacts, and returns a proposal summary. On `PROPOSED`: write the summary into the PR description with `write-discovery.ts` (overwriting the discovery — the description now reflects the post-proposal understanding), then dispatch the proposal-review sub-agent (`prompts/proposal-review.md`) with the issue ref, PR, and `changeName` for an independent, fresh-context check. Handle its verdict per **Review cycles** (`APPROVED`/minor → Implement; blocking → rerun Propose). `BLOCKED` (from Propose) → Teardown.
+**Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, `changeName`, and the discovery output. It runs `opsx:propose` (using that change name), commits and pushes the artifacts, and returns a proposal summary. On `PROPOSED`: write the summary into the PR description with `write-discovery.ts` (overwriting the discovery — the description now reflects the post-proposal understanding) → **Proposal review**. `BLOCKED` (from Propose) → Teardown.
+
+**Proposal review.** Write phase `PROPOSAL_REVIEW` to `state.json`, sync to PR. Dispatch the proposal-review sub-agent (`prompts/proposal-review.md`) with the issue ref, PR, and `changeName` for an independent, fresh-context check. Handle its verdict per **Review cycles** (`APPROVED`/minor → Implement; blocking → rerun Propose).
 
 **Implement.** Reset `ciFixes` to 0, then dispatch the implement sub-agent (`prompts/implement.md`) with `changeName`, PR, and branch (on a rerun, the change request — code-review's blocking findings or a human's requested changes — as `{{CHANGE_REQUEST}}`). On `DONE`: write its implementation summary into the PR description with `write-discovery.ts` (overwriting the proposal summary — the description now reflects what was built), then → Code review. `BLOCKED`/`CI_BLOCKED` → Teardown.
 
@@ -129,7 +131,7 @@ Each sub-agent is defined entirely by its prompt file — there are no separate 
 
 ## State & Scripts
 
-`state.json` lives in `.openspec-auto/` and is a **within-run cache** — created at Workspace (fresh) or reconstructed from the PR's agent-state marker (resume), and deleted at Teardown. It carries `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`. Valid phases: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `IN-REVIEW`, `CI-BLOCKED`. The durable, cross-run record is the PR's `<!-- agent-state: … -->` marker.
+`state.json` lives in `.openspec-auto/` and is a **within-run cache** — created at Workspace (fresh) or reconstructed from the PR's agent-state marker (resume), and deleted at Teardown. It carries `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`. Valid phases: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `PROPOSAL_REVIEW`, `IMPLEMENT`, `REVIEW`, `IN-REVIEW`, `CI-BLOCKED`. The durable, cross-run record is the PR's `<!-- agent-state: … -->` marker.
 
 Scripts live in this skill's directory. Set the base once, then call:
 
@@ -138,14 +140,14 @@ OSL=~/.claude/skills/openspec-auto
 $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 ```
 
-| Script | Purpose |
-|--------|---------|
-| `survey.ts` | One-shot GitHub survey → issue table joined to each issue's agent PR + agent-state |
-| `read-state.ts` | Read and validate `state.json` |
-| `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) |
-| `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place |
-| `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, the latest summary (discovery → proposal → implementation) below |
-| `setup-workspace.ts <issue> <branch> <title>` | Branch (off the config default branch) + empty commit + draft PR + initial state |
+| Script | Purpose | Example |
+|--------|---------|---------|
+| `survey.ts` | One-shot GitHub survey → issue table joined to each issue's agent PR + agent-state | `$OSL/node_modules/.bin/tsx $OSL/scripts/survey.ts` |
+| `read-state.ts` | Read and validate `state.json` | `$OSL/node_modules/.bin/tsx $OSL/scripts/read-state.ts` |
+| `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) | `$OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '{"phase":"WORKSPACE","issue":42,"prNumber":7,"branch":"fix/42-slug","changeName":"fix-slug","ciFixes":0,"blocked":false}'` |
+| `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place | `$OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts 7` |
+| `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, the latest summary (discovery → proposal → implementation) below | `$OSL/node_modules/.bin/tsx $OSL/scripts/write-discovery.ts 7 discovery.md` |
+| `setup-workspace.ts <issue> <branch> <title>` | Branch (off the config default branch) + empty commit + draft PR + initial state | `$OSL/node_modules/.bin/tsx $OSL/scripts/setup-workspace.ts 42 fix/42-slug "fix: auth token expiry"` |
 
 **State update protocol:** on every stage transition, `write-state.ts` first, then `sync-pr-state.ts <PR>`. First-time setup: `cd $OSL && npm install`.
 
