@@ -75,15 +75,14 @@ The orchestrator skill SHALL check for `.openspec-auto.json` at Bring-up. If the
 
 ---
 
-### Requirement: Init script validates prerequisites
-The `init` script SHALL check that required skills and tools are available and warn if any are missing.
-
-#### Scenario: Missing OpenSpec skills detected
-- **WHEN** one or more of `opsx:explore`, `opsx:propose`, `opsx:apply`, `opsx:archive` are not installed in `~/.claude/skills/`
-- **THEN** the script SHALL warn which skills are missing and provide install instructions
-- **THEN** it SHALL still complete config setup (warning, not blocking)
+### Requirement: Init script warns about a missing `gh` CLI
+The `init` script SHALL warn if the `gh` CLI is unavailable, but SHALL NOT probe for installed skills: a reliable cross-harness check of skill availability is not available, and a false "missing" warning is worse than none. The required OpenSpec and superpowers skills are documented as prerequisites in the README, and a genuinely missing skill surfaces as a clear failure at the stage that needs it.
 
 #### Scenario: Missing `gh` CLI
 - **WHEN** `gh` is not found on the PATH
 - **THEN** the script SHALL warn that `gh` must be installed and authenticated
-- **THEN** it SHALL still complete config setup
+- **THEN** it SHALL still complete config setup (warning, not blocking)
+
+#### Scenario: Init does not probe for skills
+- **WHEN** the `init` script runs
+- **THEN** it SHALL NOT check the filesystem for installed skills, and SHALL NOT emit a "missing skills" warning

@@ -1,24 +1,24 @@
 export type Phase =
   | "WORKSPACE"
   | "EXPLORE"
-  | "NEEDS-INPUT"
+  | "NEEDS_INPUT"
   | "PROPOSE"
   | "PROPOSAL_REVIEW"
   | "IMPLEMENT"
-  | "REVIEW"
-  | "IN-REVIEW"
-  | "CI-BLOCKED";
+  | "CODE_REVIEW"
+  | "IN_REVIEW"
+  | "CI_BLOCKED";
 
 export const VALID_PHASES: Phase[] = [
   "WORKSPACE",
   "EXPLORE",
-  "NEEDS-INPUT",
+  "NEEDS_INPUT",
   "PROPOSE",
   "PROPOSAL_REVIEW",
   "IMPLEMENT",
-  "REVIEW",
-  "IN-REVIEW",
-  "CI-BLOCKED",
+  "CODE_REVIEW",
+  "IN_REVIEW",
+  "CI_BLOCKED",
 ];
 
 export interface AgentState {

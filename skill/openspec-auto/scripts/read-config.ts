@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { LoopConfig } from "./config-types.js";
 
 const CONFIG_FILE = ".openspec-auto.json";
-const STATE_DIR_ENTRY = ".openspec-auto/";
+const GITIGNORE_ENTRIES = [".openspec-auto.json", ".openspec-auto/"];
 
 export function readConfig(cwd = process.cwd()): LoopConfig {
   const file = join(cwd, CONFIG_FILE);
@@ -34,8 +34,9 @@ function ensureGitignoreEntry(cwd: string): void {
   const gitignore = join(cwd, ".gitignore");
   if (!existsSync(gitignore)) return;
   const contents = readFileSync(gitignore, "utf8");
-  if (!contents.includes(STATE_DIR_ENTRY)) {
-    appendFileSync(gitignore, `\n${STATE_DIR_ENTRY}\n`);
+  const toAdd = GITIGNORE_ENTRIES.filter((e) => !contents.includes(e));
+  if (toAdd.length > 0) {
+    appendFileSync(gitignore, toAdd.map((e) => `\n${e}`).join("") + "\n");
   }
 }
 

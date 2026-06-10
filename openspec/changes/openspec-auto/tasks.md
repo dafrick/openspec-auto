@@ -20,7 +20,7 @@
 - [x] 3.2 Create `scripts/init.ts` with interactive prompts (using `@inquirer/prompts`)
 - [x] 3.3 Implement GitHub reviewer inference: `gh repo view --json owner` → default reviewer value
 - [x] 3.4 Implement `.gitignore` update: check if `.openspec-auto.json` already listed; if not, append and report
-- [x] 3.5 Implement prerequisite checks: scan `~/.claude/skills/` for OpenSpec skills, check `gh` on PATH; warn on missing
+- [x] 3.5 Implement prerequisite check: warn if `gh` is not on PATH (skills are documented prerequisites; init does not probe the filesystem for them)
 - [x] 3.6 Write `scripts/read-config.ts` shared helper: parse `.openspec-auto.json`, throw with init instructions if missing or invalid; also add `.openspec-auto/` to `.gitignore` if not present
 - [x] 3.7 Write tests for config parsing, `.gitignore` update logic, and prerequisite check output
 
@@ -37,7 +37,7 @@
 - [x] 5.1 Create `skill/openspec-auto-explore/SKILL.md` with `<SUBAGENT-STOP>` guard
 - [x] 5.2 Write autonomous Q&A section: generate questions by issue type (bug vs feature), answer each from codebase
 - [x] 5.3 Write blocking-question detection section: definition, examples (breaking change, API ambiguity), escalation signal via `## Blocking Questions` section
-- [x] 5.4 Write output contract section: status `EXPLORED` (no blocking questions, proceed) or `NEEDS_INPUT` (blocking questions listed, orchestrator enters NEEDS-INPUT)
+- [x] 5.4 Write output contract section: status `EXPLORED` (no blocking questions, proceed) or `NEEDS_INPUT` (blocking questions listed, orchestrator enters NEEDS_INPUT)
 - [x] 5.5 Write investigation scope section: start from issue entry point, no full-repo crawl
 
 ## 6. Sub-Agent Skill: Implement
@@ -59,14 +59,14 @@
 ## 8. Main Orchestrator Skill
 
 - [x] 8.1 Create `skill/openspec-auto/SKILL.md` with `<SUBAGENT-STOP>` guard
-- [x] 8.2 Add Mermaid state machine diagram covering all phases and transitions (including resume, NEEDS-INPUT, CI-BLOCKED paths)
+- [x] 8.2 Add Mermaid state machine diagram covering all phases and transitions (including resume, NEEDS_INPUT, CI_BLOCKED paths)
 - [x] 8.3 Write Phase 0 (Assess State): config check, read local `state.json` (primary path); if absent, scan GitHub PRs for agent-state markers (crash recovery), reconstruct state.json; resume or proceed to triage
 - [x] 8.4 Write Phase 1 (Triage): invoke `openspec-auto-triage` sub-agent via `Agent` tool, parse result
 - [x] 8.5 Write Phase 2 (Workspace Setup): `git checkout main && pull`, branch naming, `superpowers:using-git-worktrees`, empty commit, draft PR creation
-- [x] 8.6 Write Phase 3 (Explore): invoke `openspec-auto-explore` sub-agent via `Agent` tool, branch on status: `EXPLORED` → proceed to Phase 4; `BLOCKED` → read blocking questions from prose, post to PR, enter NEEDS-INPUT
+- [x] 8.6 Write Phase 3 (Explore): invoke `openspec-auto-explore` sub-agent via `Agent` tool, branch on status: `EXPLORED` → proceed to Phase 4; `BLOCKED` → read blocking questions from prose, post to PR, enter NEEDS_INPUT
 - [x] 8.7 Write Phase 4 (Propose): invoke `opsx:propose` via Skill tool, commit artifacts, spawn proposal-review Agent
-- [x] 8.8 Write Phase 5 (Implement): invoke `openspec-auto-implement` sub-agent via `Agent` tool, handle CI-BLOCKED result
-- [x] 8.9 Write Phase 6 (Review): reset `ciFixes`, `gh pr ready`, invoke `openspec-auto-review` sub-agent, handle CI-BLOCKED result
+- [x] 8.8 Write Phase 5 (Implement): invoke `openspec-auto-implement` sub-agent via `Agent` tool, handle CI_BLOCKED result
+- [x] 8.9 Write Phase 6 (Review): reset `ciFixes`, `gh pr ready`, invoke `openspec-auto-review` sub-agent, handle CI_BLOCKED result
 - [x] 8.10 Write Phase 7 (Wrap-up): update PR description, review/update OpenSpec artifacts, invoke `opsx:archive`, assign reviewer
 - [x] 8.11 Write Phase 8 (Teardown): `ExitWorktree({ action: "keep" })`, `git checkout main && pull`, `ScheduleWakeup` or stop
 

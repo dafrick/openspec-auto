@@ -117,18 +117,24 @@ describe("write-discovery / composePrBody", () => {
   const discovery = "## Discovery\n\nThe bug is in the parser.";
 
   test("status block comes first, discovery below", () => {
-    const body = composePrBody(block, discovery);
+    const body = composePrBody(block, discovery, VALID_STATE.issue);
     assert.ok(body.startsWith("## Agent Status"));
     assert.ok(body.indexOf("## Agent Status") < body.indexOf("## Discovery"));
   });
 
   test("agent-state marker is preserved above the discovery", () => {
-    const body = composePrBody(block, discovery);
+    const body = composePrBody(block, discovery, VALID_STATE.issue);
     assert.ok(body.indexOf("<!-- agent-state:") < body.indexOf("## Discovery"));
   });
 
   test("blank line separates the two regions", () => {
-    const body = composePrBody(block, discovery);
+    const body = composePrBody(block, discovery, VALID_STATE.issue);
     assert.match(body, /-->\n\n## Discovery/);
+  });
+
+  test("carries a Closes #N footer at the bottom for the issue link", () => {
+    const body = composePrBody(block, discovery, VALID_STATE.issue);
+    assert.match(body, /Closes #42\b/);
+    assert.ok(body.lastIndexOf("Closes #42") > body.indexOf("## Discovery"));
   });
 });

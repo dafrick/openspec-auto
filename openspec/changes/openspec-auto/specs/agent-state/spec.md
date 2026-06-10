@@ -63,6 +63,11 @@ The PR description SHALL hold two regions: the agent-status block at the top (an
 - **WHEN** `sync-pr-state` is called with the same state.json contents twice
 - **THEN** the PR description SHALL be identical after both calls
 
+#### Scenario: The Closes #N footer survives every rewrite
+- **WHEN** the orchestrator overwrites the PR description (status block + summary) at any phase
+- **THEN** the body SHALL retain a `Closes #N` closing-keyword footer for the issue
+- **THEN** the issue↔PR link (`closedByPullRequestsReferences`, how the next run rediscovers the work) and auto-close-on-merge SHALL remain intact
+
 ---
 
 ### Requirement: Only the orchestrator writes the PR
@@ -90,32 +95,30 @@ The `phase` field in state.json and the PR description SHALL only contain one of
 
 #### Scenario: Valid phase values
 - **WHEN** `phase` is read from state.json
-- **THEN** it SHALL be one of: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `IN-REVIEW`, `CI-BLOCKED`
+- **THEN** it SHALL be one of: `WORKSPACE`, `EXPLORE`, `NEEDS_INPUT`, `PROPOSE`, `PROPOSAL_REVIEW`, `IMPLEMENT`, `CODE_REVIEW`, `IN_REVIEW`, `CI_BLOCKED`
+- **THEN** every phase value SHALL use `_` as a separator, never `-`
 
 ---
 
 ### Requirement: Resumption depends on phase and human input
-Whether the orchestrator resumes an existing issue depends on the PR's phase. A `CI-BLOCKED` issue is human-owned and never auto-resumes. A `NEEDS-INPUT` issue resumes once the human has answered its blocking questions. An `IN-REVIEW` issue resumes only when the human's review requests changes; otherwise it awaits the human's merge.
+Whether the orchestrator resumes an existing issue depends on the PR's phase. A `CI_BLOCKED` issue is human-owned and never auto-resumes. A `NEEDS_INPUT` issue resumes once the human has answered its blocking questions. An `IN_REVIEW` issue is terminal — it is never resumed; it awaits the human's merge, or the human closes it (abandoning it) and the issue is retried fresh.
 
-#### Scenario: CI-BLOCKED is not resumed
-- **WHEN** Triage sees a PR marker with `blocked: true` and phase `CI-BLOCKED`
+#### Scenario: CI_BLOCKED is not resumed
+- **WHEN** Triage sees a PR marker with `blocked: true` and phase `CI_BLOCKED`
 - **THEN** it SHALL NOT mark the PR resumable
 - **THEN** it SHALL look for other work
 
-#### Scenario: IN-REVIEW with requested changes is resumed
-- **WHEN** Triage finds an `IN-REVIEW` PR with `reviewDecision: CHANGES_REQUESTED`
-- **THEN** it SHALL return `RESUME`, and the orchestrator SHALL continue at Implement with the requested changes
-
-#### Scenario: IN-REVIEW awaiting merge stays parked
-- **WHEN** Triage finds an `IN-REVIEW` PR with no requested changes
+#### Scenario: IN_REVIEW is never resumed
+- **WHEN** Triage finds an open `IN_REVIEW` PR
 - **THEN** it SHALL leave it for the human to merge and look for other work
+- **THEN** the agent SHALL NOT respond to any review on it
 
-#### Scenario: Answered NEEDS-INPUT is resumed
-- **WHEN** Triage finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
+#### Scenario: Answered NEEDS_INPUT is resumed
+- **WHEN** Triage finds a `NEEDS_INPUT` PR with a human comment newer than the agent's blocking-questions comment
 - **THEN** it SHALL return `RESUME`, and the orchestrator SHALL continue at the Explore stage with the PR context
 
-#### Scenario: Unanswered NEEDS-INPUT stays parked
-- **WHEN** Triage finds a `NEEDS-INPUT` PR with no newer human comment
+#### Scenario: Unanswered NEEDS_INPUT stays parked
+- **WHEN** Triage finds a `NEEDS_INPUT` PR with no newer human comment
 - **THEN** it SHALL leave it parked and look for other work
 
 #### Scenario: Non-blocked resumable state

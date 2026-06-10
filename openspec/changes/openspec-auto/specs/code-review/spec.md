@@ -53,7 +53,7 @@ On `CHANGES_REQUESTED`, the orchestrator SHALL decide whether to rerun based on 
 #### Scenario: Stuck after three blocking rounds
 - **WHEN** code-review returns blocking findings for a third consecutive round
 - **THEN** the orchestrator SHALL post a PR comment summarizing the unresolved findings and asking for input
-- **THEN** it SHALL write `NEEDS-INPUT` + `blocked: true` and proceed to Teardown
+- **THEN** it SHALL write `NEEDS_INPUT` + `blocked: true` and proceed to Teardown
 
 ---
 

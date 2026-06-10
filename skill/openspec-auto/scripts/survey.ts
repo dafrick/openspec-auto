@@ -5,7 +5,13 @@ import { VALID_PHASES, type Phase } from "./types.js";
  * Surveys the repo in one shot: open issues (most-recently-updated first),
  * each joined to its associated agent PR via GitHub's linked-PR graph
  * (`closedByPullRequestsReferences` — the PRs whose body says "Closes #N").
+ * Closed PRs are excluded (`includeClosedPrs:false`): a closed agent PR is an
+ * abandoned attempt, so its issue is treated as fresh work again.
  * No two-list join, no per-issue calls. Triage reasons over the result.
+ *
+ * Comments are paginated to completion — issue and PR comment threads can run
+ * past one page, and the resume signals (a human's answer after the agent's
+ * blocking-questions comment) and the explore/propose context need all of them.
  */
 
 export interface SurveyComment {
@@ -14,20 +20,11 @@ export interface SurveyComment {
   body?: string;
 }
 
-export interface ChangeRequest {
-  author: string;
-  body: string;
-}
-
 export interface AgentPr {
   number: number;
   phase: Phase;
   blocked: boolean;
   comments: SurveyComment[];
-  /** GitHub's overall review decision: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null */
-  reviewDecision: string | null;
-  /** The bodies of any CHANGES_REQUESTED reviews — the human's requested changes. */
-  changeRequests: ChangeRequest[];
 }
 
 export interface SurveyRow {
@@ -61,25 +58,24 @@ interface GqlComment {
   createdAt: string;
   body?: string;
 }
-interface GqlReview {
-  state: string;
-  body: string;
-  author: { login: string } | null;
+interface GqlCommentConnection {
+  nodes: GqlComment[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
 }
 interface GqlPr {
+  id: string;
   number: number;
   body: string;
-  comments: { nodes: GqlComment[] };
-  reviewDecision: string | null;
-  latestReviews: { nodes: GqlReview[] };
+  comments: GqlCommentConnection;
 }
 interface GqlIssue {
+  id: string;
   number: number;
   title: string;
   body: string;
   updatedAt: string;
   labels: { nodes: { name: string }[] };
-  comments: { nodes: GqlComment[] };
+  comments: GqlCommentConnection;
   closedByPullRequestsReferences: { nodes: GqlPr[] };
 }
 
@@ -102,10 +98,6 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
           phase: state.phase,
           blocked: state.blocked,
           comments: mapComments(pr.comments.nodes),
-          reviewDecision: pr.reviewDecision ?? null,
-          changeRequests: (pr.latestReviews?.nodes ?? [])
-            .filter((r) => r.state === "CHANGES_REQUESTED")
-            .map((r) => ({ author: r.author?.login ?? "", body: r.body })),
         };
         break;
       }
@@ -122,7 +114,54 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
   });
 }
 
-const QUERY = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){issues(states:OPEN,first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number title body updatedAt labels(first:20){nodes{name}} comments(first:50){nodes{author{login} body createdAt}} closedByPullRequestsReferences(first:10,includeClosedPrs:false){nodes{number body reviewDecision comments(first:50){nodes{author{login} createdAt}} latestReviews(first:10){nodes{state body author{login}}}}}}}}}`;
+const COMMENT_FIELDS = `nodes{author{login} body createdAt} pageInfo{hasNextPage endCursor}`;
+const QUERY = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){issues(states:OPEN,first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{id number title body updatedAt labels(first:20){nodes{name}} comments(first:100){${COMMENT_FIELDS}} closedByPullRequestsReferences(first:50,includeClosedPrs:false){nodes{id number body comments(first:100){${COMMENT_FIELDS}}}}}}}}`;
+
+const PAGE_QUERY = `query($id:ID!,$cursor:String!){node(id:$id){... on Issue{comments(first:100,after:$cursor){${COMMENT_FIELDS}}}... on PullRequest{comments(first:100,after:$cursor){${COMMENT_FIELDS}}}}}`;
+
+function gql(query: string, vars: Record<string, string>, cwd: string): unknown {
+  const args = Object.entries(vars)
+    .map(([k, v]) => `-f ${k}=${JSON.stringify(v)}`)
+    .join(" ");
+  const out = execSync(`gh api graphql -f query='${query}' ${args}`, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  return JSON.parse(out);
+}
+
+/** Page a single node's (Issue or PR) comment thread to completion. */
+function fetchRemainingComments(
+  id: string,
+  startCursor: string,
+  cwd: string
+): GqlComment[] {
+  const all: GqlComment[] = [];
+  let cursor: string | null = startCursor;
+  while (cursor) {
+    const data = gql(PAGE_QUERY, { id, cursor }, cwd) as {
+      data: { node: { comments: GqlCommentConnection } };
+    };
+    const conn = data.data.node.comments;
+    all.push(...conn.nodes);
+    cursor = conn.pageInfo.hasNextPage ? conn.pageInfo.endCursor : null;
+  }
+  return all;
+}
+
+/** Append every comment past the first page, in place, for an issue or PR. */
+function topUpComments(
+  node: { id: string; comments: GqlCommentConnection },
+  cwd: string
+): void {
+  const { pageInfo } = node.comments;
+  if (pageInfo.hasNextPage && pageInfo.endCursor) {
+    node.comments.nodes.push(
+      ...fetchRemainingComments(node.id, pageInfo.endCursor, cwd)
+    );
+  }
+}
 
 export function survey(cwd = process.cwd()): SurveyRow[] {
   const nameWithOwner = execSync(
@@ -130,11 +169,17 @@ export function survey(cwd = process.cwd()): SurveyRow[] {
     { cwd, encoding: "utf8" }
   ).trim();
   const [owner, name] = nameWithOwner.split("/");
-  const out = execSync(
-    `gh api graphql -f query='${QUERY}' -f owner=${owner} -f name=${name}`,
-    { cwd, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }
-  );
-  return buildTable(JSON.parse(out).data.repository.issues.nodes);
+  const data = gql(QUERY, { owner, name }, cwd) as {
+    data: { repository: { issues: { nodes: GqlIssue[] } } };
+  };
+  const issues = data.data.repository.issues.nodes;
+  for (const iss of issues) {
+    topUpComments(iss, cwd);
+    for (const pr of iss.closedByPullRequestsReferences.nodes) {
+      topUpComments(pr, cwd);
+    }
+  }
+  return buildTable(issues);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

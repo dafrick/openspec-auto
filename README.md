@@ -9,7 +9,7 @@ Autonomous GitHub issue lifecycle agent. Manages the full issue lifecycle — tr
 ## Prerequisites
 
 - [OpenSpec CLI](https://github.com/dafrick/openspec-auto) with skills: `opsx:explore`, `opsx:propose`, `opsx:apply`, `opsx:archive`
-- Superpowers skills: `superpowers:using-git-worktrees`, `superpowers:test-driven-development`
+- Superpowers skills: `superpowers:using-git-worktrees`, `superpowers:test-driven-development`, `superpowers:subagent-driven-development`, `superpowers:requesting-code-review`, `superpowers:finishing-a-development-branch`
 - `gh` CLI (authenticated)
 - Node.js 20+
 - **The target repository must be OpenSpec-initialized** (`openspec init`) — `propose` creates and applies changes under `openspec/changes/`. The loop assumes this is in place and does not set it up for you.
@@ -49,3 +49,4 @@ The `/loop` form is required so the agent re-reads the skill on each iteration, 
 - Requires OpenSpec CLI and skills
 - Processes one issue per loop iteration
 - Does not auto-merge PRs — human review is always the final step
+- Does not respond to PR review. To request a different solution, close the PR and comment on the issue; the next run retries it fresh with your comment in context.

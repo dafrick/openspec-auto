@@ -19,7 +19,7 @@ Decide whether this is a **bug** or a **feature** from the labels, title, and bo
 
 ## 2 — Investigate
 
-Generate the questions that matter for this issue type and answer each from the codebase — read the relevant source, tests, and config, and check `git log --oneline -20 -- <file>` where useful. Start from the entry point the issue names and follow references outward; don't crawl unrelated parts of the repo. Do not ask the human anything unless you hit a genuine blocking question (see step 4).
+Drive the investigation with the `opsx:explore` skill — OpenSpec's explore mode is built for exactly this: thinking through the problem, investigating the code, and clarifying requirements. Within it: generate the questions that matter for this issue type and answer each from the codebase — read the relevant source, tests, and config, and check `git log --oneline -20 -- <file>` where useful. Start from the entry point the issue names and follow references outward; don't crawl unrelated parts of the repo. The issue comments above are part of the record — fold any human guidance there into your findings. Do not ask the human anything unless you hit a genuine blocking question (see step 4).
 
 **Bug** — cover: reproduction path; expected vs actual behavior; affected code areas; **whether existing specs cover this behavior and what the specs say the desired behavior is**; related edge cases and tests.
 

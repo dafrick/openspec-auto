@@ -23,48 +23,53 @@ When Triage returns `RESUME`, the orchestrator SHALL re-establish the workspace 
 - **THEN** the loop SHALL re-establish the workspace, then continue at Implement
 - **THEN** the loop SHALL NOT re-run the earlier stages (Explore through Propose)
 
-#### Scenario: Answered NEEDS-INPUT resumes at Explore
-- **WHEN** Triage returns `RESUME` for an answered `NEEDS-INPUT` PR
+#### Scenario: Answered NEEDS_INPUT resumes at Explore
+- **WHEN** Triage returns `RESUME` for an answered `NEEDS_INPUT` PR
 - **THEN** the loop SHALL re-establish the workspace, then continue at Explore, passing the PR description and comments as context
 
-#### Scenario: IN-REVIEW with requested changes resumes at Implement
-- **WHEN** Triage returns `RESUME` for an `IN-REVIEW` PR whose review requested changes
-- **THEN** the loop SHALL re-establish the workspace, then continue at Implement, passing the requested changes as the change request
+#### Scenario: Resume from PROPOSAL_REVIEW phase
+- **WHEN** Triage returns `RESUME` with `phase: "PROPOSAL_REVIEW"` (a run interrupted at proposal review)
+- **THEN** the loop SHALL re-establish the workspace, then continue at Proposal review (a stateless re-judge, safe to repeat)
 
 ---
 
-### Requirement: Wrap up hands the PR to human review
-Wrap up SHALL finish the branch, archive the change, assign the reviewer, and set the phase to `IN-REVIEW`. The loop SHALL NOT merge the PR.
+### Requirement: Wrap up hands the PR to human review and is terminal for the agent
+Wrap up SHALL finish the branch, archive the change, assign the reviewer, and set the phase to `IN_REVIEW`. The loop SHALL NOT merge the PR. `IN_REVIEW` is terminal for the agent: the agent SHALL NOT respond to review on an `IN_REVIEW` PR. A human who wants a different solution closes the PR (abandoning it) and comments on the issue; because the agent never reopens this work, archiving the change at Wrap up is safe.
 
-#### Scenario: Successful iteration ends IN-REVIEW
+#### Scenario: Successful iteration ends IN_REVIEW
 - **WHEN** code-review returns `APPROVED`
-- **THEN** Wrap up SHALL run `superpowers:finishing-a-development-branch` and `opsx:archive`, assign the reviewer, and set phase `IN-REVIEW`
+- **THEN** Wrap up SHALL run `superpowers:finishing-a-development-branch` and `opsx:archive`, assign the reviewer, and set phase `IN_REVIEW`
 - **THEN** the PR awaits human review and the loop SHALL NOT merge it
+
+#### Scenario: A closed agent PR is abandoned, and its issue is retried fresh
+- **WHEN** a human closes an agent PR (whatever phase it was in) and the issue is still open
+- **THEN** Triage SHALL NOT see that PR (the survey excludes closed PRs), so the issue shows no live agent PR
+- **THEN** the issue is eligible as fresh work again, with the human's issue comments in the explore/propose context
 
 ---
 
 ### Requirement: Teardown always runs
-Teardown SHALL execute regardless of whether the iteration completed successfully, entered NEEDS-INPUT, or entered CI-BLOCKED.
+Teardown SHALL execute regardless of whether the iteration completed successfully, entered NEEDS_INPUT, or entered CI_BLOCKED.
 
 #### Scenario: Successful iteration teardown
 - **WHEN** Wrap up completes
 - **THEN** Teardown SHALL run, remove the worktree (`git worktree remove`), check out the default branch, and pull latest
 
-#### Scenario: NEEDS-INPUT teardown
+#### Scenario: NEEDS_INPUT teardown
 - **WHEN** Explore determines critical questions require human input
 - **THEN** Teardown SHALL run before the loop schedules a wakeup or stops
 
-#### Scenario: CI-BLOCKED teardown
+#### Scenario: CI_BLOCKED teardown
 - **WHEN** Implement or Review exhausts CI fix attempts
 - **THEN** Teardown SHALL run before the loop stops
 
 ---
 
 ### Requirement: The loop always schedules a wakeup — it never stops forever
-After Teardown completes, the loop SHALL schedule the next wakeup with `ScheduleWakeup`. There is no no-wakeup exit; parked work is revisited by the next run's triage (it resumes once a human has answered or requested changes, or picks other work).
+After Teardown completes, the loop SHALL schedule the next wakeup with `ScheduleWakeup`. There is no no-wakeup exit; the loop never stops on its own — only a user interrupt halts it. Parked work is revisited by the next run's triage (it resumes once a human has answered, or picks other work); a parked issue stops only that issue, not the loop.
 
 #### Scenario: Active iteration
-- **WHEN** the iteration did work or parked an issue (handed to review, NEEDS-INPUT, or CI-BLOCKED)
+- **WHEN** the iteration did work or parked an issue (handed to review, NEEDS_INPUT, or CI_BLOCKED)
 - **THEN** the loop SHALL schedule a wakeup in 30 minutes
 
 #### Scenario: Idle iteration
@@ -73,13 +78,17 @@ After Teardown completes, the loop SHALL schedule the next wakeup with `Schedule
 
 ---
 
-### Requirement: The change name is decided after Explore and passed onward
-The orchestrator SHALL derive the OpenSpec `changeName` once Explore succeeds, record it in `state.json`, and pass it to every later sub-agent so they all resolve `openspec/changes/<changeName>/`.
+### Requirement: The orchestrator owns the change name, recorded from Propose's output
+The orchestrator SHALL NOT pin the `changeName` before the change exists. It SHALL pass the branch slug to Propose as a *suggestion*, record the actual `changeName` reported in Propose's `PROPOSED` output into `state.json` and the PR marker, and pass it to every later sub-agent so they all resolve `openspec/changes/<changeName>/`.
 
-#### Scenario: changeName set on EXPLORED
+#### Scenario: changeName recorded on PROPOSED
+- **WHEN** `propose` returns `**Status:** PROPOSED` with a `Change:` line
+- **THEN** the orchestrator SHALL record that change name in `state.json` and sync it to the PR marker
+- **THEN** it SHALL pass `changeName` to the proposal-review, implement, and code-review sub-agents
+
+#### Scenario: changeName empty before Propose
 - **WHEN** `explore` returns `**Status:** EXPLORED`
-- **THEN** the orchestrator SHALL set `changeName` to the branch slug (keeping the change and branch paired) and write it to `state.json`
-- **THEN** it SHALL pass `changeName` to the propose, proposal-review, implement, and code-review sub-agents
+- **THEN** `changeName` SHALL remain empty (the change does not exist yet) and the orchestrator SHALL proceed to Propose
 
 ---
 
@@ -106,12 +115,12 @@ The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as 
 #### Scenario: Explore sub-agent — NEEDS_INPUT
 - **WHEN** `explore` returns `**Status:** NEEDS_INPUT`
 - **THEN** the orchestrator SHALL write the discovery output to the PR description
-- **THEN** it SHALL post the blocking questions as a PR comment and enter NEEDS-INPUT state
+- **THEN** it SHALL post the blocking questions as a PR comment and enter NEEDS_INPUT state
 
 #### Scenario: Propose sub-agent — PROPOSED
 - **WHEN** `propose` returns `**Status:** PROPOSED`
 - **THEN** the orchestrator SHALL record the change name from the prose
-- **THEN** it SHALL proceed to Implement
+- **THEN** it SHALL proceed to Proposal review
 
 #### Scenario: Propose sub-agent — BLOCKED
 - **WHEN** `propose` returns `**Status:** BLOCKED`
@@ -124,7 +133,7 @@ The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as 
 #### Scenario: Proposal review — blocking findings
 - **WHEN** `proposal-review` returns `**Status:** CHANGES_REQUESTED` with blocking findings
 - **THEN** the orchestrator SHALL rerun Propose with those findings as its change request, then re-review
-- **THEN** after a third consecutive blocking round it SHALL post a PR comment for input and park (`NEEDS-INPUT`)
+- **THEN** after a third consecutive blocking round it SHALL post a PR comment for input and park (`NEEDS_INPUT`)
 
 #### Scenario: Proposal review — only minor findings
 - **WHEN** `proposal-review` returns only minor findings
@@ -145,7 +154,7 @@ The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as 
 #### Scenario: Code review — blocking findings
 - **WHEN** `code-review` returns `**Status:** CHANGES_REQUESTED` with blocking findings
 - **THEN** the orchestrator SHALL rerun Implement with those findings as its change request (resetting `ciFixes`), then re-review
-- **THEN** after a third consecutive blocking round it SHALL post a PR comment for input and park (`NEEDS-INPUT`)
+- **THEN** after a third consecutive blocking round it SHALL post a PR comment for input and park (`NEEDS_INPUT`)
 
 #### Scenario: Code review — only minor findings
 - **WHEN** `code-review` returns only minor, out-of-scope, or unclear findings

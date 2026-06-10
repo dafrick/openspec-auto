@@ -4,12 +4,27 @@ import { renderPrBlock } from "./sync-pr-state.js";
 import { editPrBody } from "./pr-body.js";
 
 /**
- * Compose the PR description: the agent-status block at the top, the latest
- * discovery output below it. The whole body is overwritten on each explore
- * run, so the description always holds exactly one (current) discovery.
+ * The closing-keyword footer. It must survive every body rewrite: GitHub's
+ * issue↔PR link (`closedByPullRequestsReferences`, how the next run rediscovers
+ * this work) and auto-close-on-merge both depend on a `Closes #N` keyword
+ * staying in the body.
  */
-export function composePrBody(statusBlock: string, discovery: string): string {
-  return `${statusBlock}\n\n${discovery.trim()}\n`;
+export function issueFooter(issue: number): string {
+  return `---\n\nCloses #${issue} — autonomous implementation by openspec-auto. See the issue for full context.`;
+}
+
+/**
+ * Compose the PR description: the agent-status block at the top, the latest
+ * summary (discovery → proposal → implementation) in the middle, the issue
+ * footer at the bottom. The whole body is overwritten on each summary write,
+ * so the description always holds exactly one (current) summary.
+ */
+export function composePrBody(
+  statusBlock: string,
+  discovery: string,
+  issue: number
+): string {
+  return `${statusBlock}\n\n${discovery.trim()}\n\n${issueFooter(issue)}\n`;
 }
 
 export function writeDiscovery(
@@ -17,7 +32,8 @@ export function writeDiscovery(
   discovery: string,
   cwd = process.cwd()
 ): void {
-  const body = composePrBody(renderPrBlock(readState(cwd)), discovery);
+  const state = readState(cwd);
+  const body = composePrBody(renderPrBlock(state), discovery, state.issue);
   editPrBody(prNumber, body, cwd);
 }
 

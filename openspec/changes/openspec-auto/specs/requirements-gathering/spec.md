@@ -41,21 +41,21 @@ The sub-agent's output SHALL begin with a status line. `EXPLORED` means no block
 - **WHEN** the explore sub-agent identifies one or more questions that require human input
 - **THEN** its output SHALL begin with `**Status:** NEEDS_INPUT`
 - **THEN** its output SHALL end with a `## Blocking Questions` section listing them
-- **THEN** the orchestrator SHALL post those questions as a PR comment and enter NEEDS-INPUT state
+- **THEN** the orchestrator SHALL post those questions as a PR comment and enter NEEDS_INPUT state
 
 ---
 
-### Requirement: A NEEDS-INPUT issue resumes by re-running explore with PR context
-When a parked NEEDS-INPUT PR has been answered, the orchestrator SHALL re-dispatch the explore sub-agent with the issue plus the PR description (prior discovery) and all PR comments (the dialogue).
+### Requirement: A NEEDS_INPUT issue resumes by re-running explore with PR context
+When a parked NEEDS_INPUT PR has been answered, the orchestrator SHALL re-dispatch the explore sub-agent with the issue plus the PR description (prior discovery) and all PR comments (the dialogue).
 
 #### Scenario: Resume after a human answers
-- **WHEN** a NEEDS-INPUT PR has a human comment newer than the agent's blocking-questions comment
+- **WHEN** a NEEDS_INPUT PR has a human comment newer than the agent's blocking-questions comment
 - **THEN** the orchestrator SHALL re-dispatch explore, passing the prior discovery and the dialogue as context
 - **THEN** explore SHALL produce a fresh discovery output that overwrites the PR description
 - **THEN** explore SHALL return `EXPLORED` (proceed) or `NEEDS_INPUT` again (ask further questions)
 
-#### Scenario: Unanswered NEEDS-INPUT stays parked
-- **WHEN** a NEEDS-INPUT PR has no human comment after the blocking-questions comment
+#### Scenario: Unanswered NEEDS_INPUT stays parked
+- **WHEN** a NEEDS_INPUT PR has no human comment after the blocking-questions comment
 - **THEN** the orchestrator SHALL leave it parked and look for other work
 
 ---

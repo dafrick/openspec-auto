@@ -6,7 +6,6 @@ import type { LoopConfig } from "./config-types.js";
 
 const CONFIG_FILE = ".openspec-auto.json";
 const GITIGNORE_ENTRIES = [".openspec-auto.json", ".openspec-auto/"];
-const REQUIRED_SKILLS = ["opsx:explore", "opsx:propose", "opsx:apply", "opsx:archive"];
 
 function inferReviewer(): string {
   try {
@@ -40,14 +39,6 @@ function checkGhCli(): boolean {
   }
 }
 
-function checkSkills(): string[] {
-  const skillsDir = join(process.env.HOME ?? "~", ".claude", "skills");
-  return REQUIRED_SKILLS.filter((skill) => {
-    const skillDir = join(skillsDir, skill);
-    return !existsSync(skillDir);
-  });
-}
-
 function updateGitignore(cwd: string): void {
   const gitignorePath = join(cwd, ".gitignore");
   const existing = existsSync(gitignorePath)
@@ -65,14 +56,6 @@ async function main(): Promise<void> {
   if (!checkGhCli()) {
     console.warn(
       "Warning: `gh` CLI not found on PATH. Install and authenticate it before using openspec-auto.\n"
-    );
-  }
-
-  const missingSkills = checkSkills();
-  if (missingSkills.length > 0) {
-    console.warn(
-      `Warning: Missing OpenSpec skills: ${missingSkills.join(", ")}\n` +
-        `Install them from https://github.com/dafrick/openspec-auto\n`
     );
   }
 

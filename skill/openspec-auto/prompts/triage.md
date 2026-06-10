@@ -16,11 +16,10 @@ Each row is `{ issue, title, body, updatedAt, labels, comments, agentPr }`, wher
 ## 2 — Resume first
 
 A row's agent PR is **resumable** when:
-- phase `NEEDS-INPUT` and a human answered — a comment newer than the agent's blocking-questions comment → resume at **Explore**;
-- phase `IN-REVIEW` and `reviewDecision` is `CHANGES_REQUESTED` — a human review asked for changes → resume at **Implement** with those requested changes;
-- a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`IMPLEMENT`/`REVIEW`) with `blocked: false` — a stalled run → resume there.
+- phase `NEEDS_INPUT` and a human answered — a comment newer than the agent's blocking-questions comment → resume at **Explore**;
+- a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`PROPOSAL_REVIEW`/`IMPLEMENT`/`CODE_REVIEW`) with `blocked: false` — a stalled run → resume there.
 
-Not resumable: `CI-BLOCKED` (a human owns it), and `IN-REVIEW` with no changes requested (awaiting the human's merge).
+Not resumable: `CI_BLOCKED` (a human owns it) and `IN_REVIEW` (the agent's work is done — the PR awaits the human's merge; the agent does not respond to review). If the human wants a different solution they close the PR, and **closed PRs are excluded from the survey entirely** — so an issue whose only agent attempt was closed shows `agentPr: null` and is eligible as fresh work again.
 
 If any row is resumable, return `**Status:** RESUME` for the **most advanced** one. Do not look at new issues.
 
@@ -39,8 +38,8 @@ From the eligible rows, pick the best: prefer more-recently-updated, higher-impa
 **Status:** RESUME
 PR: #<PR>
 Phase: <recorded phase>
-<why this PR is resumable; for an IN-REVIEW PR, quote the requested changes
-so the orchestrator can hand them to Implement>
+<why this PR is resumable — e.g. a NEEDS_INPUT PR with a human answer newer than
+the blocking-questions comment, or a stalled non-terminal phase>
 ```
 
 ```

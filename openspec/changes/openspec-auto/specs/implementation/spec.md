@@ -61,7 +61,7 @@ The `ciFixes` counter tracks CI fix attempts for the current Implement increment
 #### Scenario: Third CI failure triggers stop
 - **WHEN** the `ciFixes` counter reaches 3 within an Implement increment
 - **THEN** the sub-agent SHALL return `**Status:** CI_BLOCKED` with a summary of all failures and attempts
-- **THEN** the orchestrator SHALL write the `CI-BLOCKED` + `blocked: true` state and post the summary
+- **THEN** the orchestrator SHALL write the `CI_BLOCKED` + `blocked: true` state and post the summary
 
 #### Scenario: Counter resets each increment
 - **WHEN** the orchestrator reruns Implement (e.g., to apply code-review's blocking findings)
@@ -92,7 +92,7 @@ The sub-agent SHALL implement tasks in the order specified in `tasks.md` and che
 ---
 
 ### Requirement: Implement is rerunnable with a change request
-The implement sub-agent SHALL accept an optional change request and, when present, address it rather than re-running the full task list. The change request may come from code-review's blocking findings or from a human's requested-changes review on an `IN-REVIEW` PR. When the change request alters the intended behavior or plan, the sub-agent SHALL update the spec (proposal/specs/tasks) **before** changing code, so spec and code stay in sync.
+The implement sub-agent SHALL accept an optional change request and, when present, address it rather than re-running the full task list. The change request comes from code-review's blocking findings (the agent does not respond to human review — see the phase-lifecycle terminal-Wrap-up requirement). When the change request alters the intended behavior or plan, the sub-agent SHALL update the spec (proposal/specs/tasks) **before** changing code, so spec and code stay in sync.
 
 #### Scenario: Spec updated before code when intent changes
 - **WHEN** a change request alters the intended behavior
@@ -102,7 +102,3 @@ The implement sub-agent SHALL accept an optional change request and, when presen
 - **WHEN** the orchestrator reruns Implement with code-review's blocking findings as the change request
 - **THEN** the sub-agent SHALL fix those findings (updating `tasks.md` or the change specs if warranted)
 - **THEN** it SHALL not restart the completed task list from scratch
-
-#### Scenario: Rerun applies a human's requested changes
-- **WHEN** the orchestrator reruns Implement for an `IN-REVIEW` PR with the human's requested changes as the change request
-- **THEN** the sub-agent SHALL make those changes, then proceed through code-review and Wrap up again

@@ -18,6 +18,7 @@ The design is informed by two constraints: (1) the `/loop` mechanism re-reads th
 - Multi-issue parallelism — one issue per loop iteration
 - Cross-repository operation
 - Auto-merging PRs — human review is always the final step
+- Responding to human review — Wrap up is terminal for the agent. A human who wants a different solution closes the PR (abandoning it) and comments on the issue; the next run picks the issue up fresh with that comment in context. The agent does not iterate against review comments on an `IN_REVIEW` PR.
 
 ## Decisions
 
@@ -35,7 +36,7 @@ The design is informed by two constraints: (1) the `/loop` mechanism re-reads th
 
 ### D2: Sub-Agents Are Prompt Files, Not Skills
 
-**Decision**: Each sub-agent is defined entirely by a prompt file under `skill/openspec-auto/prompts/` (`triage.md`, `explore.md`, `implement.md`, `review.md`). The orchestrator dispatches it with the `Agent` tool, filling `{{PLACEHOLDERS}}` with the context the sub-agent needs. There are no separate sub-agent `SKILL.md` files; `openspec-auto` is the only installed skill.
+**Decision**: Each sub-agent is defined entirely by a prompt file under `skill/openspec-auto/prompts/` (`triage.md`, `explore.md`, `propose.md`, `proposal-review.md`, `implement.md`, `code-review.md`). The orchestrator dispatches it with the `Agent` tool, filling `{{PLACEHOLDERS}}` with the context the sub-agent needs. There are no separate sub-agent `SKILL.md` files; `openspec-auto` is the only installed skill.
 
 **Rationale**: The sub-agents are never invoked standalone — only the orchestrator dispatches them — so a separate skill layer added indirection (a prompt that points at a skill) with no benefit. This matches the superpowers `subagent-driven-development` model, where the prompt file *is* the sub-agent definition: one file per sub-agent, nothing to keep in sync.
 
@@ -83,9 +84,9 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 **The orchestrator's contract**: explore returns `**Status:** EXPLORED` (no blocking questions — proceed to Propose) or `**Status:** NEEDS_INPUT` (blocking questions present). The output ends with a `## Blocking Questions` section (a numbered list, or `(none)`). On `NEEDS_INPUT` the orchestrator posts those questions as a PR comment and parks the run.
 
-**Resume**: a parked `NEEDS-INPUT` PR resumes when a human answers (a comment newer than the questions). The orchestrator re-dispatches explore, this time passing the issue *plus* the PR description (prior discovery) and all comments (the dialogue). Explore produces a fresh discovery that overwrites the description, and either clears or asks again. The description holds exactly one discovery at all times; the comment thread holds the back-and-forth.
+**Resume**: a parked `NEEDS_INPUT` PR resumes when a human answers (a comment newer than the questions). The orchestrator re-dispatches explore, this time passing the issue *plus* the PR description (prior discovery) and all comments (the dialogue). Explore produces a fresh discovery that overwrites the description, and either clears or asks again. The description holds exactly one discovery at all times; the comment thread holds the back-and-forth.
 
-**Rationale**: A verbatim transcript is noisy and bloats the PR; a synthesized discovery is what Propose actually needs and what a human wants to read. Persisting it to the description (rather than returning it only through the sub-agent boundary) means the requirements work survives a NEEDS-INPUT pause and a context reset — it is the artifact explore would otherwise never write to disk. The minor/major assessment doubles as a late scope gate: "major" is a legitimate blocking question even after triage passed the issue.
+**Rationale**: A verbatim transcript is noisy and bloats the PR; a synthesized discovery is what Propose actually needs and what a human wants to read. Persisting it to the description (rather than returning it only through the sub-agent boundary) means the requirements work survives a NEEDS_INPUT pause and a context reset — it is the artifact explore would otherwise never write to disk. The minor/major assessment doubles as a late scope gate: "major" is a legitimate blocking question even after triage passed the issue.
 
 ---
 
@@ -116,7 +117,7 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 **Decision**: Each sub-agent has its own prompt file (`prompts/triage.md`, etc.); they are not merged into a single parameterized prompt.
 
-**Rationale**: The four sub-agents have genuinely different shapes. Triage and explore are stateless evaluation tasks. Implement is a stateful execution loop (delegates to `opsx:apply`, watches CI). Review delegates to `superpowers:requesting-code-review` and adds a scope filter. One file with mode branches would be long and mostly-irrelevant per dispatch; four focused files keep each prompt to what that role needs.
+**Rationale**: The six sub-agents have genuinely different shapes. Triage and the two reviews are stateless evaluation tasks. Explore and propose are rerunnable artifact-producers. Implement is a stateful execution loop (delegates to `opsx:apply`, watches CI). One file with mode branches would be long and mostly-irrelevant per dispatch; six focused files keep each prompt to what that role needs.
 
 **Shared conventions** repeat in each file rather than being abstracted out: the "you have no prior context" framing, the `**Status:**` output contract, and the inline-context principle. (The `<SUBAGENT-STOP>` guard was dropped — it only made sense when these were invokable skills.)
 
@@ -156,9 +157,9 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ### D12: Delegate to superpowers/opsx; pick the model per sub-agent
 
-**Decision**: The skills lean on existing skills rather than re-describing their logic. Propose delegates artifact generation to `opsx:propose` on the first run; reruns edit the existing artifacts directly (the change already exists, so `opsx:propose` is not re-invoked). Implement delegates the task loop to `opsx:apply`, run via `superpowers:subagent-driven-development` (a fresh sub-agent per task, each following `superpowers:test-driven-development`), and adds CI monitoring and commit/push as it goes (at least once per top-level task). Code review delegates to `superpowers:requesting-code-review` and adds only the scope/severity tagging. Wrap-up runs `superpowers:finishing-a-development-branch` before `opsx:archive`. After Propose, an independent fresh-context `proposal-review` sub-agent judges the artifacts before Implement begins. Each sub-agent is dispatched with the cheapest sufficient model: triage `haiku`; explore, propose, and implement `sonnet`; proposal-review and code-review `opus`.
+**Decision**: The skills lean on existing skills rather than re-describing their logic. Explore drives its investigation with `opsx:explore` (OpenSpec's explore mode). Propose delegates artifact generation to `opsx:propose` on the first run; a run is "first" only when there is no change request **and** no existing change directory, so a resumed-mid-Propose run edits in place instead of re-invoking `opsx:propose`. The orchestrator does not pin the change name in advance — it passes the branch slug as a *suggestion*, and records whatever name `opsx:propose` reports back into `state.json` and the PR marker (the orchestrator owns `changeName`). Implement delegates the task loop to `opsx:apply`, run via `superpowers:subagent-driven-development` (a fresh sub-agent per task, each following `superpowers:test-driven-development`), and adds CI monitoring and commit/push as it goes (at least once per top-level task). Code review delegates to `superpowers:requesting-code-review` and adds only the scope/severity tagging. Wrap-up runs `superpowers:finishing-a-development-branch` before `opsx:archive`; it is terminal for the agent (see Non-Goals), so archiving the change there is safe. After Propose, an independent fresh-context `proposal-review` sub-agent judges the artifacts before Implement begins. Each sub-agent is dispatched with the cheapest sufficient model — a fast/light model for triage's mechanical fetch-and-filter, a capable model for explore/propose/implement, and the most capable model for the two reviews (highest-stakes judgment).
 
-**Rationale**: Re-implementing a task loop or review mechanics duplicates maintained behavior and drifts out of sync. The openspec-auto layer should carry only what is genuinely its own. Model selection follows the superpowers `subagent-driven-development` guidance — match model power to task complexity, with the reviews (design judgment, scope/severity calls) getting the strongest model.
+**Rationale**: Re-implementing a task loop or review mechanics duplicates maintained behavior and drifts out of sync. The openspec-auto layer should carry only what is genuinely its own. Model selection follows the superpowers `subagent-driven-development` guidance — match model power to task complexity, with the reviews (design judgment, scope/severity calls) getting the strongest model. Model tiers are described by capability rather than pinned to specific model names so the skill stays correct as the underlying models change.
 
 ---
 
@@ -166,7 +167,7 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 **Decision**: Two kinds of sub-agent. **Implementation loops** (`explore`, `propose`, `implement`) are rerunnable: each runs on a fresh context plus the current state and an optional `{{CHANGE_REQUEST}}`, producing or modifying artifacts/code. **Review steps** (`proposal-review`, `code-review`) are stateless: they read the current state, judge it, and return findings tagged blocking/minor — they never change anything. One layer of sub-agents, with one sanctioned exception: `implement` runs `opsx:apply` via `superpowers:subagent-driven-development`, which dispatches a sub-agent per task (each doing TDD). Every other sub-agent uses `Skill` in-context only and never spawns `Agent` sub-agents.
 
-When a review returns `CHANGES_REQUESTED`, the orchestrator assesses the findings: **blocking** → rerun the matching loop with the findings as its change request, then re-review; **minor / out-of-scope / unclear** → post as open questions and proceed. After three consecutive blocking rounds on the same review, post a PR comment for human input and park (`NEEDS-INPUT`).
+When a review returns `CHANGES_REQUESTED`, the orchestrator assesses the findings: **blocking** → rerun the matching loop with the findings as its change request, then re-review; **minor / out-of-scope / unclear** → post as open questions and proceed. After three consecutive blocking rounds on the same review, post a PR comment for human input and park (`NEEDS_INPUT`).
 
 **Rationale**: Separating "make changes" (rerunnable loops) from "judge changes" (stateless reviews) keeps each role simple and gives a uniform feedback mechanism (`{{CHANGE_REQUEST}}`) across explore/propose/implement. The severity assessment stops the loop from spinning on non-essential improvements, and the 3-round cap converts a genuine impasse into a human hand-off rather than an infinite loop or a silent low-quality merge.
 
@@ -176,9 +177,9 @@ When a review returns `CHANGES_REQUESTED`, the orchestrator assesses the finding
 
 **R1: Worktree cleanup** → A crash before Teardown can leave a stale worktree. Mitigation: `superpowers:using-git-worktrees` reuses or cleans an existing worktree for the branch on resume, and `git worktree prune` clears dead entries.
 
-**R2: OpenSpec skills not installed** → The init script checks that `opsx:explore`, `opsx:propose`, `opsx:apply`, `opsx:archive` are available in `~/.claude/skills/`. If any are missing, init warns and links to install instructions.
+**R2: OpenSpec skills not installed** → `openspec-auto` depends on `opsx:explore`, `opsx:propose`, `opsx:apply`, and `opsx:archive`. These are listed as prerequisites in the README; init does not probe for them (a reliable cross-harness check of skill availability isn't available, and a false "missing" warning is worse than none). A missing skill surfaces as a clear failure at the stage that needs it.
 
-**R3: `gh` rate limiting** → Fetching 50 issues + comments per iteration could hit GitHub API limits on busy repos. Mitigation: `--limit 50` is already a cap; the skill can be tuned to `--limit 20` for high-volume repos.
+**R3: `gh` rate limiting** → The survey is one GraphQL call for up to 50 issues and their linked PRs; comment threads are then paginated to completion (the resume signal and explore/propose context need every comment). On very busy repos this is more calls, but still bounded by issue/PR count. Mitigation: the issue/PR page sizes (50) can be tuned down for high-volume repos; comment pagination only fires when a thread exceeds one page.
 
 **R4: Sub-agent context size** → A large codebase exploration could fill the `explore` sub-agent's context window before it produces output. Mitigation: the explore prompt explicitly scopes investigation to files/modules relevant to the issue, not a full repo crawl.
 
