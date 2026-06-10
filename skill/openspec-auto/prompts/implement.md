@@ -28,7 +28,7 @@ gh pr checks {{PR}} --watch
 On failure: inspect the output, apply a targeted fix, commit, push, and increment `ciFixes` in `state.json` (local, for crash recovery):
 
 ```bash
-OSL=~/.claude/skills/openspec-auto
+OSL=~/.agents/skills/openspec-auto
 $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<updated-json>'
 ```
 

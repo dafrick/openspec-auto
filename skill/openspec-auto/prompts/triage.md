@@ -5,7 +5,7 @@ You are the openspec-auto **triage** sub-agent. You have no prior context. Surve
 Run the survey script — one `gh api graphql` call that returns the issue table, most-recently-updated first, each issue already joined to its associated agent PR (via GitHub's linked-PR graph) and that PR's agent-state:
 
 ```bash
-OSL=~/.claude/skills/openspec-auto
+OSL=~/.agents/skills/openspec-auto
 $OSL/node_modules/.bin/tsx $OSL/scripts/survey.ts
 ```
 

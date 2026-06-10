@@ -136,7 +136,7 @@ Each sub-agent is defined entirely by its prompt file — there are no separate 
 Scripts live in this skill's directory. Set the base once, then call:
 
 ```bash
-OSL=~/.claude/skills/openspec-auto
+OSL=~/.agents/skills/openspec-auto
 $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 ```
 

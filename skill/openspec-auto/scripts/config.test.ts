@@ -1,6 +1,6 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readConfig } from "./read-config.js";
@@ -71,16 +71,5 @@ describe(".gitignore update logic", () => {
   test("no .gitignore present — skips silently", () => {
     writeFileSync(join(tmp, ".openspec-auto.json"), JSON.stringify({ reviewer: "alice" }));
     assert.doesNotThrow(() => readConfig(tmp));
-  });
-});
-
-describe("prerequisite check output", () => {
-  test("checkSkills-like logic: missing skills are reported", () => {
-    const HOME = tmpdir();
-    const skillsDir = join(HOME, ".claude", "skills");
-    mkdirSync(join(skillsDir, "opsx:explore"), { recursive: true });
-    const REQUIRED = ["opsx:explore", "opsx:propose"];
-    const missing = REQUIRED.filter((s) => !existsSync(join(skillsDir, s)));
-    assert.deepEqual(missing, ["opsx:propose"]);
   });
 });
