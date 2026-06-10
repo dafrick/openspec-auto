@@ -11,7 +11,7 @@ Discovery output:
 
 {{CHANGE_REQUEST}}
 
-`{{CHANGE_REQUEST}}` is empty on the first run. On a rerun it holds the blocking findings from proposal-review; revise the existing artifacts under `openspec/changes/{{CHANGE_NAME}}/` to resolve them rather than starting over.
+`{{CHANGE_REQUEST}}` is empty on the first run and holds proposal-review's blocking findings on a rerun (see step 2).
 
 You have the issue title and the discovery output — enough to write the change. If you need the full issue body, the PR description, or the comments, fetch them with `gh`; don't assume everything is inline.
 
@@ -19,9 +19,11 @@ You have the issue title and the discovery output — enough to write the change
 
 Check `openspec/specs/` for existing capability specs covering this area. If specs already govern it, your change MODIFIES them (delta specs); if not, it ADDS new capabilities. Shape the artifacts accordingly.
 
-## 2 — Generate the change
+## 2 — Generate or revise the change
 
-Invoke `opsx:propose` using the change name `{{CHANGE_NAME}}`, grounded in the discovery output: its Problem and Findings drive the proposal's "why", its Approach drives the design decisions, its scope boundaries drive what the specs and tasks cover. Do not re-derive requirements from scratch — the discovery is the requirements record.
+**First run** (`{{CHANGE_REQUEST}}` empty): invoke `opsx:propose` using the change name `{{CHANGE_NAME}}`, grounded in the discovery output — its Problem and Findings drive the proposal's "why", its Approach drives the design decisions, its scope boundaries drive what the specs and tasks cover. Do not re-derive requirements from scratch; the discovery is the requirements record.
+
+**Rerun** (`{{CHANGE_REQUEST}}` present): the change already exists — do **not** invoke `opsx:propose`. Edit the artifacts under `openspec/changes/{{CHANGE_NAME}}/` directly to resolve the blocking findings.
 
 ## 3 — Confirm the tasks are implementable
 

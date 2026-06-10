@@ -12,6 +12,7 @@ Autonomous GitHub issue lifecycle agent for Claude Code. Manages the full issue 
 - Superpowers skills: `superpowers:using-git-worktrees`, `superpowers:test-driven-development`
 - `gh` CLI (authenticated)
 - Node.js 20+
+- **The target repository must be OpenSpec-initialized** (`openspec init`) — `propose` creates and applies changes under `openspec/changes/`. The loop assumes this is in place and does not set it up for you.
 
 ## Install
 

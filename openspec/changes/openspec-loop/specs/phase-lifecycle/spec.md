@@ -85,7 +85,7 @@ The orchestrator SHALL derive the OpenSpec `changeName` once Explore succeeds, r
 
 #### Scenario: changeName set on EXPLORED
 - **WHEN** `explore` returns `**Status:** EXPLORED`
-- **THEN** the orchestrator SHALL derive a kebab-case `changeName` from the issue/discovery and write it to `state.json`
+- **THEN** the orchestrator SHALL set `changeName` to the branch slug (keeping the change and branch paired) and write it to `state.json`
 - **THEN** it SHALL pass `changeName` to the propose, proposal-review, implement, and code-review sub-agents
 
 ---
