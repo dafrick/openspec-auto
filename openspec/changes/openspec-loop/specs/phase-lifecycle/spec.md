@@ -80,6 +80,16 @@ The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineli
 
 ---
 
+### Requirement: The change name is decided after Explore and passed onward
+The orchestrator SHALL derive the OpenSpec `changeName` once Explore succeeds, record it in `state.json`, and pass it to every later sub-agent so they all resolve `openspec/changes/<changeName>/`.
+
+#### Scenario: changeName set on EXPLORED
+- **WHEN** `explore` returns `**Status:** EXPLORED`
+- **THEN** the orchestrator SHALL derive a kebab-case `changeName` from the issue/discovery and write it to `state.json`
+- **THEN** it SHALL pass `changeName` to the propose, proposal-review, implement, and code-review sub-agents
+
+---
+
 ### Requirement: Orchestrator delegates stages to sub-agents
 The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file. After Propose, an independent `proposal-review` sub-agent SHALL judge the artifacts before Implement begins.
 
@@ -114,26 +124,35 @@ The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as 
 - **WHEN** `proposal-review` returns `**Status:** APPROVED`
 - **THEN** the orchestrator SHALL proceed to Implement
 
-#### Scenario: Proposal review — CHANGES_REQUESTED
-- **WHEN** `proposal-review` returns `**Status:** CHANGES_REQUESTED`
-- **THEN** the orchestrator SHALL re-dispatch Propose with the feedback and re-review
-- **THEN** after a second round it SHALL proceed to Implement
+#### Scenario: Proposal review — blocking findings
+- **WHEN** `proposal-review` returns `**Status:** CHANGES_REQUESTED` with blocking findings
+- **THEN** the orchestrator SHALL rerun Propose with those findings as its change request, then re-review
+- **THEN** after a third consecutive blocking round it SHALL post a PR comment for input and park (`NEEDS-INPUT`)
+
+#### Scenario: Proposal review — only minor findings
+- **WHEN** `proposal-review` returns only minor findings
+- **THEN** the orchestrator SHALL post them as open questions and proceed to Implement
 
 #### Scenario: Implement sub-agent — DONE
 - **WHEN** `implement` returns `**Status:** DONE`
-- **THEN** the orchestrator SHALL proceed to Review
+- **THEN** the orchestrator SHALL proceed to Code review
 
 #### Scenario: Implement sub-agent — BLOCKED or CI_BLOCKED
 - **WHEN** `implement` returns `**Status:** BLOCKED` or `**Status:** CI_BLOCKED`
 - **THEN** the orchestrator SHALL update agent state accordingly and proceed to Teardown
 
-#### Scenario: Review sub-agent — APPROVED
-- **WHEN** `review` returns `**Status:** APPROVED`
+#### Scenario: Code review — APPROVED
+- **WHEN** `code-review` returns `**Status:** APPROVED`
 - **THEN** the orchestrator SHALL proceed to Wrap up
 
-#### Scenario: Review sub-agent — CHANGES_REQUESTED
-- **WHEN** `review` returns `**Status:** CHANGES_REQUESTED`
-- **THEN** the orchestrator SHALL read the findings from the prose and implement accepted changes
+#### Scenario: Code review — blocking findings
+- **WHEN** `code-review` returns `**Status:** CHANGES_REQUESTED` with blocking findings
+- **THEN** the orchestrator SHALL rerun Implement with those findings as its change request (resetting `ciFixes`), then re-review
+- **THEN** after a third consecutive blocking round it SHALL post a PR comment for input and park (`NEEDS-INPUT`)
+
+#### Scenario: Code review — only minor findings
+- **WHEN** `code-review` returns only minor, out-of-scope, or unclear findings
+- **THEN** the orchestrator SHALL post them as open questions and proceed to Wrap up
 
 #### Scenario: Sub-agent returns no recognizable status
 - **WHEN** a sub-agent exits without a recognizable `**Status:**` line

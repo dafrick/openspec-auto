@@ -23,7 +23,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D1: Orchestrator + Sub-Agent Architecture
 
-**Decision**: The `openspec-auto` orchestrator skill manages the stage state machine and delegates each expensive stage to a dedicated sub-agent (`triage`, `explore`, `propose`, `proposal-review`, `implement`, `review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
+**Decision**: The `openspec-auto` orchestrator skill manages the stage state machine and delegates each expensive stage to a dedicated sub-agent (`triage`, `explore`, `propose`, `proposal-review`, `implement`, `code-review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
 
 **Rationale**: Each sub-agent runs in an isolated context window — no instruction drift, no accumulated context from prior phases. The orchestrator receives a structured result and advances the state machine. This mirrors how real pipelines work: a coordinator delegates to workers.
 
@@ -104,7 +104,7 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 | `propose` | `PROPOSED`, `BLOCKED` |
 | `proposal-review` | `APPROVED`, `CHANGES_REQUESTED` |
 | `implement` | `DONE`, `BLOCKED`, `CI_BLOCKED` |
-| `review` | `APPROVED`, `CHANGES_REQUESTED`, `CI_BLOCKED` |
+| `code-review` | `APPROVED`, `CHANGES_REQUESTED` |
 
 **Rationale**: Status codes make orchestrator branching reliable without scripted parsing of prose. The pattern is taken directly from the superpowers `subagent-driven-development` skill, which uses `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `NEEDS_CONTEXT`. Prose detail is for human observers and for the orchestrator to mine for specifics when needed (e.g., which blocking questions to post).
 
@@ -140,11 +140,11 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ---
 
-### D10: `ciFixes` Counter Resets Per Phase
+### D10: `ciFixes` Counter Resets Per Implement Increment
 
-**Decision**: The `ciFixes` field in agent-state tracks CI fix attempts within the current phase only. It resets to 0 when Review starts.
+**Decision**: The `ciFixes` field tracks CI fix attempts within the current Implement increment only. The orchestrator resets it to 0 before each Implement run — the initial one and every rerun driven by code-review's blocking findings. Only `implement` pushes and watches CI; reviews never do.
 
-**Rationale**: A failure in Implement implementation is a different failure mode from a failure in Review post-review. Cumulative counting would block Review on issues already resolved. Per-phase counting gives each phase a fair 3-attempt budget.
+**Rationale**: Each implement increment is a distinct piece of work and deserves its own fair 3-attempt CI budget; carrying the count across increments would block a fresh increment on failures already resolved.
 
 ---
 
@@ -158,9 +158,21 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ### D12: Delegate to superpowers/opsx; pick the model per sub-agent
 
-**Decision**: The skills lean on existing skills rather than re-describing their logic. Propose delegates artifact generation to `opsx:propose`. Implement delegates the task loop to `opsx:apply` (which itself runs `superpowers:test-driven-development` per task) and adds only CI monitoring. Review delegates to `superpowers:requesting-code-review` and adds only the in-scope/out-of-scope/unclear scope filter. Wrap-up runs `superpowers:finishing-a-development-branch` before `opsx:archive`. After Propose, an independent fresh-context `proposal-review` sub-agent judges the artifacts before Implement begins. Each sub-agent is dispatched with the cheapest sufficient model: triage `haiku`; explore, propose, and implement `sonnet`; proposal-review and review `opus`.
+**Decision**: The skills lean on existing skills rather than re-describing their logic. Propose delegates artifact generation to `opsx:propose`. Implement delegates the task loop to `opsx:apply` (which itself runs `superpowers:test-driven-development` per task) and adds only CI monitoring. Code review delegates to `superpowers:requesting-code-review` and adds only the scope/severity tagging. Wrap-up runs `superpowers:finishing-a-development-branch` before `opsx:archive`. After Propose, an independent fresh-context `proposal-review` sub-agent judges the artifacts before Implement begins. Each sub-agent is dispatched with the cheapest sufficient model: triage `haiku`; explore, propose, and implement `sonnet`; proposal-review and code-review `opus`.
 
-**Rationale**: Re-implementing a task loop or review mechanics duplicates maintained behavior and drifts out of sync. The openspec-auto layer should carry only what is genuinely its own. Model selection follows the superpowers `subagent-driven-development` guidance — match model power to task complexity, with review (design judgment, scope calls) getting the strongest model.
+**Rationale**: Re-implementing a task loop or review mechanics duplicates maintained behavior and drifts out of sync. The openspec-auto layer should carry only what is genuinely its own. Model selection follows the superpowers `subagent-driven-development` guidance — match model power to task complexity, with the reviews (design judgment, scope/severity calls) getting the strongest model.
+
+---
+
+### D13: Implementation loops vs. review steps; the orchestrator owns the loop
+
+**Decision**: Two kinds of sub-agent. **Implementation loops** (`explore`, `propose`, `implement`) are rerunnable: each runs on a fresh context plus the current state and an optional `{{CHANGE_REQUEST}}`, producing or modifying artifacts/code. **Review steps** (`proposal-review`, `code-review`) are stateless: they read the current state, judge it, and return findings tagged blocking/minor — they never change anything. Only one layer of sub-agents: sub-agents use `Skill` in-context (e.g. `opsx:apply`) and never spawn their own `Agent` sub-agents.
+
+When a review returns `CHANGES_REQUESTED`, the orchestrator assesses the findings: **blocking** → rerun the matching loop with the findings as its change request, then re-review; **minor / out-of-scope / unclear** → post as open questions and proceed. After three consecutive blocking rounds on the same review, post a PR comment for human input and park (`NEEDS-INPUT`).
+
+**Rationale**: Separating "make changes" (rerunnable loops) from "judge changes" (stateless reviews) keeps each role simple and gives a uniform feedback mechanism (`{{CHANGE_REQUEST}}`) across explore/propose/implement. The severity assessment stops the loop from spinning on non-essential improvements, and the 3-round cap converts a genuine impasse into a human hand-off rather than an infinite loop or a silent low-quality merge.
+
+**Alternative considered**: reviewers that fix what they find (the earlier design). Rejected — a reviewer that also edits is not stateless, blurs responsibility, and can't be safely rerun; routing fixes back through `implement` keeps one place that changes code.
 
 ## Risks / Trade-offs
 
@@ -178,5 +190,4 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ## Open Questions
 
-- Should `implement` and `review` share a single "CI fix" sub-agent, or keep CI fixing inline in each? (Current: inline — simpler, revisit if duplication is painful.)
 - Should the init script write the `.gitignore` entry automatically, or instruct the user to add it? (Current lean: write it automatically, show what was added.)

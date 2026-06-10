@@ -19,9 +19,8 @@ If a single task fails to reach passing local tests after 3 attempts, the sub-ag
 
 #### Scenario: Task exhausts attempt cap
 - **WHEN** the implement sub-agent has attempted a task 3 times without getting tests to pass
-- **THEN** it SHALL post a PR comment describing the task, each attempt, and what was tried
-- **THEN** it SHALL update agent state to `CI-BLOCKED` with `blocked: true`
-- **THEN** it SHALL exit without further implementation work
+- **THEN** it SHALL return `**Status:** BLOCKED` with a summary of the task and each attempt
+- **THEN** the orchestrator SHALL write the blocked state and post the summary (the sub-agent does not write the PR)
 
 ---
 
@@ -38,14 +37,17 @@ After each `git push`, the implement sub-agent SHALL wait for all CI checks to c
 
 ---
 
-### Requirement: CI fix attempts are capped per phase
-The `ciFixes` counter in agent state tracks CI fix attempts for the current phase. When it reaches 3, the sub-agent SHALL stop.
+### Requirement: CI fix attempts are capped per increment
+The `ciFixes` counter tracks CI fix attempts for the current Implement increment. The orchestrator resets it to 0 before each Implement run; when it reaches 3, the sub-agent SHALL stop.
 
 #### Scenario: Third CI failure triggers stop
-- **WHEN** the `ciFixes` counter reaches 3 within Implement
-- **THEN** the sub-agent SHALL post a CI-blocked comment with a summary of all failures and attempts
-- **THEN** it SHALL update agent state to `CI-BLOCKED` with `blocked: true`
-- **THEN** it SHALL exit
+- **WHEN** the `ciFixes` counter reaches 3 within an Implement increment
+- **THEN** the sub-agent SHALL return `**Status:** CI_BLOCKED` with a summary of all failures and attempts
+- **THEN** the orchestrator SHALL write the `CI-BLOCKED` + `blocked: true` state and post the summary
+
+#### Scenario: Counter resets each increment
+- **WHEN** the orchestrator reruns Implement (e.g., to apply code-review's blocking findings)
+- **THEN** it SHALL reset `ciFixes` to 0 before dispatching, giving the increment its own 3-attempt budget
 
 ---
 
@@ -68,3 +70,13 @@ The sub-agent SHALL implement tasks in the order specified in `tasks.md` and che
 #### Scenario: All tasks completed
 - **WHEN** all tasks in `tasks.md` are checked off and CI passes
 - **THEN** the sub-agent SHALL exit with a success signal for the orchestrator
+
+---
+
+### Requirement: Implement is rerunnable with a change request
+The implement sub-agent SHALL accept an optional change request and, when present, address it rather than re-running the full task list.
+
+#### Scenario: Rerun applies code-review's blocking findings
+- **WHEN** the orchestrator reruns Implement with code-review's blocking findings as the change request
+- **THEN** the sub-agent SHALL fix those findings (updating `tasks.md` or the change specs if warranted)
+- **THEN** it SHALL not restart the completed task list from scratch
