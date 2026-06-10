@@ -23,7 +23,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D1: Orchestrator + Sub-Agent Architecture
 
-**Decision**: The `openspec-auto` orchestrator skill manages the stage state machine and delegates each expensive stage to a dedicated sub-agent (`triage`, `explore`, `propose`, `implement`, `review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
+**Decision**: The `openspec-auto` orchestrator skill manages the stage state machine and delegates each expensive stage to a dedicated sub-agent (`triage`, `explore`, `propose`, `proposal-review`, `implement`, `review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
 
 **Rationale**: Each sub-agent runs in an isolated context window — no instruction drift, no accumulated context from prior phases. The orchestrator receives a structured result and advances the state machine. This mirrors how real pipelines work: a coordinator delegates to workers.
 
@@ -61,9 +61,11 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Decision**: Machine state lives in `.openspec-auto/state.json` at the worktree root — the source of truth, read on every transition without a network call. Fields: `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`.
 
-The **PR description** is the human-visible record and the durable checkpoint. It has two regions: the **agent-status block on top** (`## Agent Status` table + `<!-- agent-state: {...} -->` marker, written from `state.json`) and the **latest discovery output below it** (see D5). The description is overwritten as the run progresses, so it always shows where things stand — never an accreting log.
+The **PR description** is the human-visible record and the durable checkpoint. It has two regions: the **agent-status block on top** (`## Agent Status` table + `<!-- agent-state: {...} -->` marker, written from `state.json`) and the **latest summary below it** — the discovery output after Explore, replaced by a post-proposal summary once Propose completes (see D5). The description is overwritten as the run progresses, so it always shows where things stand — never an accreting log.
 
 The **PR comments** hold the dialogue: blocking questions the agent raises, and the human's answers. (Contrast: the description is *state*, the comments are *conversation*.)
+
+**Only the orchestrator writes the PR.** Sub-agents return their output (discovery, proposal summary, blocking questions, deferred findings, CI-blocked summaries) and the orchestrator writes the description and posts comments. Sub-agents still commit and push branch contents where stated — that is not a PR write.
 
 **Scripts**: `sync-pr-state.ts` updates only the status block in place; `write-discovery.ts` overwrites the body as status-block + discovery. Both edit through `gh pr edit --body-file` (a temp file), so markdown containing quotes, backticks, or `$` can't break shell quoting.
 
@@ -100,6 +102,7 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 | `triage` | `SELECTED`, `NO_ELIGIBLE`, `NEEDS_CONTEXT` |
 | `explore` | `EXPLORED`, `NEEDS_INPUT` |
 | `propose` | `PROPOSED`, `BLOCKED` |
+| `proposal-review` | `APPROVED`, `CHANGES_REQUESTED` |
 | `implement` | `DONE`, `BLOCKED`, `CI_BLOCKED` |
 | `review` | `APPROVED`, `CHANGES_REQUESTED`, `CI_BLOCKED` |
 
@@ -155,7 +158,7 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ### D12: Delegate to superpowers/opsx; pick the model per sub-agent
 
-**Decision**: The skills lean on existing skills rather than re-describing their logic. Propose delegates artifact generation to `opsx:propose`. Implement delegates the task loop to `opsx:apply` (which itself runs `superpowers:test-driven-development` per task) and adds only CI monitoring. Review delegates to `superpowers:requesting-code-review` and adds only the in-scope/out-of-scope/unclear scope filter. Wrap-up runs `superpowers:finishing-a-development-branch` before `opsx:archive`. Each sub-agent is dispatched with the cheapest sufficient model: triage `haiku`; explore, propose, and implement `sonnet`; review `opus`.
+**Decision**: The skills lean on existing skills rather than re-describing their logic. Propose delegates artifact generation to `opsx:propose`. Implement delegates the task loop to `opsx:apply` (which itself runs `superpowers:test-driven-development` per task) and adds only CI monitoring. Review delegates to `superpowers:requesting-code-review` and adds only the in-scope/out-of-scope/unclear scope filter. Wrap-up runs `superpowers:finishing-a-development-branch` before `opsx:archive`. After Propose, an independent fresh-context `proposal-review` sub-agent judges the artifacts before Implement begins. Each sub-agent is dispatched with the cheapest sufficient model: triage `haiku`; explore, propose, and implement `sonnet`; proposal-review and review `opus`.
 
 **Rationale**: Re-implementing a task loop or review mechanics duplicates maintained behavior and drifts out of sync. The openspec-auto layer should carry only what is genuinely its own. Model selection follows the superpowers `subagent-driven-development` guidance — match model power to task complexity, with review (design judgment, scope calls) getting the strongest model.
 

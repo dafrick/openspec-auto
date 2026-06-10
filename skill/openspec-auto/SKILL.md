@@ -4,7 +4,7 @@ Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper tr
 
 **Why an orchestrator + sub-agents:** Each expensive stage runs as a fresh sub-agent with its own context window. You — the orchestrator — hold only the state machine and the result each sub-agent returns. Sub-agents never inherit your history; you build their context from a prompt template. This prevents the instruction drift that breaks long single-context runs.
 
-**Core principle:** One issue per invocation. `state.json` is the source of truth. The PR description is the human-visible checkpoint — the agent-status block on top, the latest discovery output below it — overwritten as the run progresses, so it always reflects where things stand. The PR comments hold the dialogue: blocking questions the agent raises and the human's answers. Each stage writes its phase, then branches on the sub-agent's `**Status:**` line.
+**Core principle:** One issue per invocation. `state.json` is the source of truth. The PR description is the human-visible checkpoint — the agent-status block on top, the latest summary below it (the discovery output, then a post-proposal summary) — overwritten as the run progresses, so it always reflects where things stand. The PR comments hold the dialogue: blocking questions the agent raises and the human's answers. **Only the orchestrator writes to the PR** — sub-agents return their output and the orchestrator updates the description and posts comments. Each stage writes its phase, then branches on the sub-agent's `**Status:**` line.
 
 **Continuous execution:** Don't check in with your human between stages. Run the whole machine. Stop only on the terminal conditions in **Stopping Conditions** — otherwise keep going.
 
@@ -23,8 +23,10 @@ flowchart TD
     E -->|EXPLORED| P[Propose]
     E -->|NEEDS_INPUT| Z
 
-    P -->|PROPOSED| I[Implement]
+    P -->|PROPOSED| PV[Proposal review]
     P -->|BLOCKED| Z
+    PV -->|APPROVED| I[Implement]
+    PV -->|CHANGES_REQUESTED| P
     I -->|DONE| V[Review]
     I -->|BLOCKED / CI_BLOCKED| Z
 
@@ -50,6 +52,7 @@ Dispatch each sub-agent with the cheapest model that fits the work:
 | triage    | haiku  | Mechanical fetch + filter, no design judgment |
 | explore   | sonnet | Codebase reading and requirement judgment |
 | propose   | sonnet | Structures the discovery into OpenSpec artifacts |
+| proposal-review | opus | Independent judgment on whether the proposal is sound |
 | implement | sonnet | Integration work, coordinates the change |
 | review    | opus   | Design judgment and scope calls — highest stakes |
 
@@ -64,14 +67,16 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 | triage    | `NEEDS_CONTEXT` | GitHub unreachable — print the error, stop, no wakeup |
 | explore   | `EXPLORED` | Write discovery to the PR description → dispatch **Propose** with the discovery |
 | explore   | `NEEDS_INPUT` | Write discovery to the PR description, post blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, Teardown, no wakeup |
-| propose   | `PROPOSED` | Record `changeName` from the prose → **Implement** |
+| propose   | `PROPOSED` | Record `changeName`; write the proposal summary to the PR description → **Proposal review** |
 | propose   | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
+| proposal-review | `APPROVED` | → **Implement** |
+| proposal-review | `CHANGES_REQUESTED` | Re-dispatch Propose with the feedback (cap 2 rounds, then proceed to Implement) |
 | implement | `DONE` | → **Review** |
 | implement | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
-| implement | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, Teardown, no wakeup |
-| review    | `APPROVED` | → **Wrap up** |
-| review    | `CHANGES_REQUESTED` | Sub-agent already pushed fixes; confirm CI green, re-dispatch review once |
-| review    | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, Teardown, no wakeup |
+| implement | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, post the summary comment, Teardown, no wakeup |
+| review    | `APPROVED` | Post the Deferred / Left-for-human notes as PR comments → **Wrap up** |
+| review    | `CHANGES_REQUESTED` | Post the Deferred / Left-for-human notes; sub-agent already pushed in-scope fixes; confirm CI green, re-dispatch review once |
+| review    | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, post the summary comment, Teardown, no wakeup |
 
 ## The Stages
 
@@ -90,7 +95,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → pass the discovery inline to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, and park (Teardown, no wakeup).
 
-**Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, and the discovery output. It runs `opsx:propose` grounded in the discovery, commits and pushes the artifacts itself, and returns the change name. Record `changeName` in state. `PROPOSED` → Implement; `BLOCKED` → Teardown.
+**Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, and the discovery output. It runs `opsx:propose` grounded in the discovery, commits and pushes the artifacts itself, and returns the change name plus a proposal summary. On `PROPOSED`: record `changeName`, and write the proposal summary into the PR description with `write-discovery.ts` (overwriting the discovery — the description now reflects the post-proposal understanding). Then dispatch the proposal-review sub-agent (`prompts/proposal-review.md`) for an independent, fresh-context check. `APPROVED` → Implement. `CHANGES_REQUESTED` → re-dispatch Propose with the feedback, then re-review; after a second round, proceed to Implement. `BLOCKED` (from Propose) → Teardown.
 
 **Implement.** Dispatch the implement sub-agent (`prompts/implement.md`).
 
@@ -115,6 +120,7 @@ Each sub-agent is defined entirely by its prompt file — there are no separate 
 - `prompts/triage.md`
 - `prompts/explore.md`
 - `prompts/propose.md`
+- `prompts/proposal-review.md`
 - `prompts/implement.md`
 - `prompts/review.md`
 
@@ -146,6 +152,7 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 - **Never start Review before Implement returns `DONE`**, or Wrap up before Review returns `APPROVED`.
 - **Never schedule a wakeup on a terminal stop** — NEEDS-INPUT and CI-BLOCKED wait for a human.
 - **Never let a sub-agent read your context** — pass everything through its prompt template.
+- **Never let a sub-agent edit the PR** — only the orchestrator writes the description and posts comments; sub-agents return their output and you write it.
 - **Never carry `ciFixes` across stages** — it resets to 0 when Review begins.
 
 ## Integration

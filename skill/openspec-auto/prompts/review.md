@@ -19,9 +19,9 @@ This handles diff reading, finding identification, and severity. Let it complete
 
 For each finding:
 
-- **In-scope** — correct and within the linked issue's scope (missing null check, wrong branch condition, a test that doesn't actually assert). **Implement it.**
-- **Out-of-scope** — would change behavior beyond what the issue asks. **Skip it** and post: `"Finding considered but deferred: <description>. Reason: out of scope for this issue."`
-- **Unclear / design-level** — would substantially change the design or needs a maintainer decision. **Leave it for the human** and note it in the PR description.
+- **In-scope** — correct and within the linked issue's scope (missing null check, wrong branch condition, a test that doesn't actually assert). **Implement it** (commit and push).
+- **Out-of-scope** — would change behavior beyond what the issue asks. **Skip it** and list it under *Deferred* in your output.
+- **Unclear / design-level** — would substantially change the design or needs a maintainer decision. **Leave it for the human** and list it under *Left for human* in your output.
 
 After pushing in-scope fixes, watch CI:
 
@@ -30,6 +30,8 @@ gh pr checks {{PR}} --watch
 ```
 
 `ciFixes` was reset to 0 by the orchestrator at the start of Review. **CI fix cap — 3** → `CI_BLOCKED`.
+
+Do not edit the PR description or comments — the orchestrator posts the Deferred and Left-for-human notes from your output below.
 
 ## Output
 

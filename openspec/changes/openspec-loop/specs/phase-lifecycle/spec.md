@@ -81,7 +81,7 @@ The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineli
 ---
 
 ### Requirement: Orchestrator delegates stages to sub-agents
-The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file.
+The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file. After Propose, an independent `proposal-review` sub-agent SHALL judge the artifacts before Implement begins.
 
 #### Scenario: Triage sub-agent — SELECTED
 - **WHEN** Triage begins and `triage` returns `**Status:** SELECTED`
@@ -109,6 +109,15 @@ The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as 
 #### Scenario: Propose sub-agent — BLOCKED
 - **WHEN** `propose` returns `**Status:** BLOCKED`
 - **THEN** the orchestrator SHALL set `blocked: true` and proceed to Teardown
+
+#### Scenario: Proposal review — APPROVED
+- **WHEN** `proposal-review` returns `**Status:** APPROVED`
+- **THEN** the orchestrator SHALL proceed to Implement
+
+#### Scenario: Proposal review — CHANGES_REQUESTED
+- **WHEN** `proposal-review` returns `**Status:** CHANGES_REQUESTED`
+- **THEN** the orchestrator SHALL re-dispatch Propose with the feedback and re-review
+- **THEN** after a second round it SHALL proceed to Implement
 
 #### Scenario: Implement sub-agent — DONE
 - **WHEN** `implement` returns `**Status:** DONE`

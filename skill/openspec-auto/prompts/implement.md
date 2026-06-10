@@ -20,14 +20,14 @@ Skill({ skill: "opsx:apply" })
 gh pr checks {{PR}} --watch
 ```
 
-On failure: inspect the output, apply a targeted fix, commit, push, and increment `ciFixes`:
+On failure: inspect the output, apply a targeted fix, commit, push, and increment `ciFixes` in `state.json` (local, for crash recovery):
 
 ```bash
 OSL=~/.claude/skills/openspec-auto
 $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<updated-json>'
 ```
 
-**CI fix cap — 3.** On the third failure: post a PR comment summarizing every failure and fix, write `phase: "CI-BLOCKED"` + `blocked: true`, and return `**Status:** CI_BLOCKED`.
+**CI fix cap — 3.** On the third failure, return `**Status:** CI_BLOCKED` with the full summary of every failure and fix in your output. Do not edit the PR — the orchestrator writes the CI-BLOCKED state and posts the summary to the PR.
 
 ## Output
 

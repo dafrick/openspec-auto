@@ -36,17 +36,21 @@ Assess SHALL check for `.openspec-auto/state.json` before making any GitHub API 
 
 ---
 
-### Requirement: PR description carries the status block on top and the discovery output below
-The PR description SHALL hold two regions: the agent-status block at the top (an `## Agent Status` table plus an `<!-- agent-state: {...} -->` marker, rendered from `state.json`) and the latest discovery output below it. The description SHALL be overwritten as the run progresses — it always reflects the current state, never an accreting log.
+### Requirement: PR description carries the status block on top and the latest summary below
+The PR description SHALL hold two regions: the agent-status block at the top (an `## Agent Status` table plus an `<!-- agent-state: {...} -->` marker, rendered from `state.json`) and the latest summary below it — the discovery output after Explore, replaced by a post-proposal summary once Propose completes. The description SHALL be overwritten as the run progresses — it always reflects the current understanding, never an accreting log.
 
 #### Scenario: Status block synced at each phase transition
 - **WHEN** the orchestrator updates `state.json` to a new phase
 - **THEN** it SHALL call `sync-pr-state` to update the `## Agent Status` block in place at the top of the description
-- **THEN** the block SHALL match the current `state.json` contents, leaving the discovery output below untouched
+- **THEN** the block SHALL match the current `state.json` contents, leaving the summary below untouched
 
 #### Scenario: Discovery written below the status block
 - **WHEN** the explore sub-agent returns a discovery output
 - **THEN** the orchestrator SHALL call `write-discovery` to set the description to the status block followed by the discovery output
+
+#### Scenario: Proposal summary replaces the discovery
+- **WHEN** the propose sub-agent returns `PROPOSED` with a summary
+- **THEN** the orchestrator SHALL call `write-discovery` to overwrite the lower region with the proposal summary
 
 #### Scenario: sync-pr-state is idempotent
 - **WHEN** `sync-pr-state` is called with the same state.json contents twice
@@ -54,10 +58,15 @@ The PR description SHALL hold two regions: the agent-status block at the top (an
 
 ---
 
-### Requirement: PR comments hold the dialogue
-Blocking questions and the human's answers SHALL live in PR comments, not the description. The description is state; the comments are conversation.
+### Requirement: Only the orchestrator writes the PR
+The PR description and comments SHALL be written only by the orchestrator. Sub-agents SHALL return their output and the orchestrator SHALL persist it; sub-agents SHALL NOT edit the description or post comments. (Committing and pushing branch contents is not a PR write and remains a sub-agent's responsibility where stated.)
 
-#### Scenario: Blocking questions posted as a comment
+#### Scenario: Sub-agent returns data, orchestrator writes
+- **WHEN** any sub-agent produces content destined for the PR (discovery, proposal summary, blocking questions, deferred findings, a CI-blocked summary)
+- **THEN** it SHALL return that content in its output
+- **THEN** the orchestrator SHALL write it to the PR description or post it as a comment
+
+#### Scenario: PR comments hold the dialogue
 - **WHEN** the explore sub-agent returns `NEEDS_INPUT`
 - **THEN** the orchestrator SHALL post the blocking questions as a PR comment
 - **THEN** it SHALL NOT place the dialogue in the PR description

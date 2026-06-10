@@ -22,12 +22,18 @@ Before finishing, re-read `tasks.md`: each task should be concrete and verifiabl
 
 Stage the generated artifacts under `openspec/`, commit as `chore(openspec): add change artifacts for issue #{{ISSUE}}`, and push to the branch.
 
+Do not edit the PR description or comments — return your output below and the orchestrator will update the PR.
+
 ## Output
 
 ```
 **Status:** PROPOSED
 Change: <change-name>
-<one-line summary of the proposed change>
+
+Summary:
+<a tight summary of how the change is understood after proposing: the problem,
+the approach, and the key design decisions. The orchestrator writes this into
+the PR description, replacing the discovery output.>
 ```
 
 ```
@@ -35,4 +41,4 @@ Change: <change-name>
 <what prevented a coherent proposal>
 ```
 
-The orchestrator reads the change name from your output and records it for the Implement stage.
+The orchestrator reads the change name and summary from your output, records the change name for the Implement stage, and writes the summary to the PR description.
