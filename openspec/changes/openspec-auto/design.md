@@ -68,7 +68,7 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 **Only the orchestrator writes the PR.** Sub-agents return their output (discovery, proposal summary, blocking questions, deferred findings, CI-blocked summaries) and the orchestrator writes the description and posts comments. Sub-agents still commit and push branch contents where stated — that is not a PR write.
 
-**Scripts**: `sync-pr-state.ts` updates the status block in place; `write-discovery.ts` overwrites the summary region. Both edit through `gh pr edit --body-file` (a temp file), so markdown with quotes, backticks, or `$` can't break shell quoting. Within a run, `state.json` keeps state reads off the network in the hot path.
+**Scripts**: `sync-pr-state.ts` updates the status block in place; `write-discovery.ts` overwrites the summary region. Both edit through the REST API (`gh api repos/{owner}/{repo}/pulls/<PR> --method PATCH --input <file>`), passing the new body as a JSON payload file so markdown with quotes, backticks, or `$` can't break shell quoting. (We avoid `gh pr edit`: it queries the now-deprecated Projects-classic `projectCards` field and errors out even on an unrelated body update.) Within a run, `state.json` keeps state reads off the network in the hot path.
 
 **Rationale**: Putting the cross-run record on the PR makes the loop independent of any machine or local file — a run can resume on a different machine, and a leftover `state.json` from a crashed run is simply ignored (Bring-up never reads it; Triage rebuilds from the marker). This is simpler and more robust than treating a local file as the source of truth and bolting on crash recovery.
 
