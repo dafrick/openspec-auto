@@ -122,11 +122,11 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ---
 
-### D8: Worktree Management — `ExitWorktree` Tool
+### D8: Worktree Management — plain `git worktree`
 
-**Decision**: Use the Claude Code harness `ExitWorktree` tool with `action: "keep"` for teardown. Document `git worktree remove <path>` as the manual fallback.
+**Decision**: Create the worktree via `superpowers:using-git-worktrees`; tear it down at the end of every run with plain `git worktree remove --force <path>` (general git, not a harness-specific tool). The worktree is not kept.
 
-**Rationale**: `ExitWorktree` integrates with the harness's worktree tracking and handles edge cases (uncommitted changes, lock files). Prefer harness tools over equivalent bash where available.
+**Rationale**: Plain `git worktree` is portable and works in any environment, not only harness-managed sessions. Removing the worktree each run keeps the workspace clean and, with the PR marker as the durable record, nothing is lost — a resumed run re-establishes the worktree from the branch. `--force` covers the git-ignored scratch (`.openspec-auto/`).
 
 ---
 
@@ -174,7 +174,7 @@ When a review returns `CHANGES_REQUESTED`, the orchestrator assesses the finding
 
 ## Risks / Trade-offs
 
-**R1: Harness tool availability** → The `ExitWorktree` tool is only available inside harness-managed sessions. Documented fallback: `git worktree remove <path>`. If the harness is absent, the agent falls back gracefully.
+**R1: Worktree cleanup** → A crash before Teardown can leave a stale worktree. Mitigation: `superpowers:using-git-worktrees` reuses or cleans an existing worktree for the branch on resume, and `git worktree prune` clears dead entries.
 
 **R2: OpenSpec skills not installed** → The init script checks that `opsx:explore`, `opsx:propose`, `opsx:apply`, `opsx:archive` are available in `~/.claude/skills/`. If any are missing, init warns and links to install instructions.
 

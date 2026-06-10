@@ -70,8 +70,8 @@ From eligible issues, the triage sub-agent SHALL select the one with the highest
 
 #### Scenario: No eligible issues found
 - **WHEN** all open issues are ineligible or have active PRs/branches
-- **THEN** the triage sub-agent SHALL return a signal indicating no eligible issue
-- **THEN** the orchestrator SHALL stop and schedule a 2-hour wakeup
+- **THEN** the triage sub-agent SHALL return `NO_ELIGIBLE`
+- **THEN** the orchestrator SHALL Teardown and schedule a 6-hour (idle) wakeup
 
 ---
 

@@ -34,7 +34,7 @@ Teardown SHALL execute regardless of whether the iteration completed successfull
 
 #### Scenario: Successful iteration teardown
 - **WHEN** Wrap up completes
-- **THEN** Teardown SHALL run, exit the worktree, check out main, and pull latest
+- **THEN** Teardown SHALL run, remove the worktree (`git worktree remove`), check out the default branch, and pull latest
 
 #### Scenario: NEEDS-INPUT teardown
 - **WHEN** Explore determines critical questions require human input
@@ -46,33 +46,16 @@ Teardown SHALL execute regardless of whether the iteration completed successfull
 
 ---
 
-### Requirement: Loop schedules next wakeup after teardown
-After Teardown completes, the loop SHALL schedule the next wakeup using `ScheduleWakeup`.
+### Requirement: The loop always schedules a wakeup — it never stops forever
+After Teardown completes, the loop SHALL schedule the next wakeup with `ScheduleWakeup`. There is no no-wakeup exit; parked work is revisited by the next run's triage (it resumes once a human has answered or requested changes, or picks other work).
 
-#### Scenario: Active issue queue wakeup
-- **WHEN** the iteration completed work (success, NEEDS-INPUT, or CI-BLOCKED)
+#### Scenario: Active iteration
+- **WHEN** the iteration did work or parked an issue (handed to review, NEEDS-INPUT, or CI-BLOCKED)
 - **THEN** the loop SHALL schedule a wakeup in 30 minutes
 
-#### Scenario: No eligible issues wakeup
-- **WHEN** Triage found no eligible issues
-- **THEN** the loop SHALL schedule a wakeup in 2 hours
-
----
-
-### Requirement: Loop stops without wakeup under stopping conditions
-The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineligible, when `gh` authentication has expired, or when NEEDS-INPUT or CI-BLOCKED state is entered.
-
-#### Scenario: All issues in-flight
-- **WHEN** Triage finds that every open issue either has an agent PR or is ineligible
-- **THEN** the loop SHALL output a message explaining why it stopped and SHALL NOT call ScheduleWakeup
-
-#### Scenario: Authentication failure
-- **WHEN** any `gh` command exits with an authentication error
-- **THEN** the loop SHALL output a diagnostic message and SHALL NOT call ScheduleWakeup
-
-#### Scenario: NEEDS-INPUT stop
-- **WHEN** the loop enters NEEDS-INPUT state (critical questions require human)
-- **THEN** the loop SHALL output a message noting the PR number and questions, then stop without scheduling a wakeup
+#### Scenario: Idle iteration
+- **WHEN** there is nothing to do (no resumable PR and no eligible issue) or `gh` authentication has expired
+- **THEN** the loop SHALL schedule a wakeup in 6 hours
 
 ---
 
@@ -100,7 +83,7 @@ The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as 
 
 #### Scenario: Triage sub-agent — NO_ELIGIBLE
 - **WHEN** `triage` returns `**Status:** NO_ELIGIBLE`
-- **THEN** the orchestrator SHALL proceed to Teardown and schedule a 2-hour wakeup
+- **THEN** the orchestrator SHALL proceed to Teardown and schedule a 6-hour (idle) wakeup
 
 #### Scenario: Explore sub-agent — EXPLORED
 - **WHEN** `explore` returns `**Status:** EXPLORED`

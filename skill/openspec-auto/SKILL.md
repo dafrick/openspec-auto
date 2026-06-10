@@ -35,9 +35,8 @@ flowchart TD
 
     F --> Z
     Z --> S{Schedule next?}
-    S -->|work done| K[Wake 30m]
-    S -->|no eligible issues| L[Wake 2h]
-    S -->|terminal stop| H[Stop]
+    S -->|active| K[Wake 30m]
+    S -->|idle / auth expired| L[Wake 6h]
 ```
 
 Stage names match the `phase` they write to `state.json`: **Workspace → `WORKSPACE`**, **Explore → `EXPLORE`**, **Propose → `PROPOSE`**, **Implement → `IMPLEMENT`**, **Code review → `REVIEW`**, **Wrap up → `COMPLETE`**. The failure exits write `NEEDS-INPUT` or `CI-BLOCKED`. Bring-up, Triage, and Teardown run before or after the PR exists and write no phase.
@@ -63,7 +62,7 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 |-----------|--------|--------|
 | triage    | `RESUME` | Read PR # and recorded phase → **Workspace** (resume), continue at that phase |
 | triage    | `SELECTED` | Read issue #, branch prefix, slug from prose → **Workspace** (fresh) |
-| triage    | `NO_ELIGIBLE` | Teardown, wake in 2h |
+| triage    | `NO_ELIGIBLE` | Teardown, wake in 6h (idle) |
 | triage    | `NEEDS_CONTEXT` | GitHub unreachable — print the error, stop, no wakeup |
 | explore   | `EXPLORED` | Write discovery to the PR description, derive and record `changeName` → **Propose** |
 | explore   | `NEEDS_INPUT` | Write discovery to the PR description, post blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, Teardown, no wakeup |
@@ -108,15 +107,14 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Wrap up.** Invoke `superpowers:finishing-a-development-branch`, then `opsx:archive`, then assign the reviewer (`gh pr edit --add-reviewer <reviewer>`).
 
-**Teardown — always runs.** Delete `.openspec-auto/` (the run's scratch state — the PR marker is the durable record), `ExitWorktree({ action: "keep" })`, check out the default branch, pull, then schedule per **Stopping Conditions**.
+**Teardown — always runs.** Return to the primary checkout and remove the worktree (`git worktree remove --force <path>` — this clears the run's scratch `.openspec-auto/` with it; the PR marker is the durable record). Check out the default branch, pull, then schedule per **Stopping Conditions**.
 
 ## Stopping Conditions
 
-After Teardown, schedule the next wakeup with `ScheduleWakeup` — unless a terminal stop applies, in which case print why and schedule nothing.
+After Teardown, **always** schedule the next wakeup with `ScheduleWakeup` — the loop never stops forever.
 
-- **Work completed** (success, NEEDS-INPUT, or CI-BLOCKED) → wake in 30 minutes.
-- **No eligible issues** → wake in 2 hours.
-- **Terminal stops — no wakeup:** every open issue is in-flight or ineligible; `gh` auth expired (any `gh` command returned an auth error); `NEEDS-INPUT` entered; `CI-BLOCKED` entered.
+- **Active** — the iteration did work or parked an issue (handed to review, NEEDS-INPUT, or CI-BLOCKED) → wake in **30 minutes**. The next run re-triages: it resumes answered/changes-requested work or picks a new issue.
+- **Idle** — nothing to do (no resumable PR, no eligible issue) or `gh` auth has expired → wake in **6 hours**.
 
 ## Prompt Templates
 
