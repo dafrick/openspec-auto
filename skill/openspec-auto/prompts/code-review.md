@@ -10,11 +10,7 @@ The **change spec is the contract** — read `openspec/changes/{{CHANGE_NAME}}/`
 
 ## 2 — Review the current diff
 
-```js
-Skill({ skill: "superpowers:requesting-code-review" })
-```
-
-This handles diff reading, finding identification, and severity. Let it complete.
+Run the `superpowers:requesting-code-review` skill — it handles diff reading, finding identification, and severity. Let it complete.
 
 ## 3 — Categorize each finding
 
