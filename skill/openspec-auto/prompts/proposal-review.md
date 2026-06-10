@@ -15,16 +15,25 @@ Read the change artifacts under `openspec/changes/{{CHANGE_NAME}}/` — proposal
 
 Form your own view from the artifacts; do not assume the proposal is correct because it exists.
 
-Do not edit the artifacts or the PR — report your judgment and the orchestrator acts on it.
+Tag each finding by **severity** — *blocking* (the proposal is wrong or incomplete without it) or *minor* (a worthwhile improvement that is not required).
+
+You make no edits and write nothing to the PR — report your judgment; the orchestrator decides what to do.
 
 ## Output
 
 ```
 **Status:** APPROVED
-<one-line confirmation; any minor, non-blocking notes>
+<nothing worth changing; any minor notes>
 ```
 
 ```
 **Status:** CHANGES_REQUESTED
-<the specific gaps, by artifact, that must be fixed before implementation>
+
+Blocking:
+- <gap, by artifact>
+
+Minor:
+- <gap, by artifact>
 ```
+
+Omit any empty section. The orchestrator assesses these: blocking ones trigger a rerun of Propose; minor ones are recorded as open questions and the loop proceeds.

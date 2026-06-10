@@ -6,13 +6,17 @@ Branch: {{BRANCH}}
 Issue: #{{ISSUE}}
 Change: {{CHANGE_NAME}}
 
+{{CHANGE_REQUEST}}
+
+`{{CHANGE_REQUEST}}` is empty on the first run. On a rerun it holds the blocking findings from code-review; address those — fix the code (and update `tasks.md` or the change specs if a fix warrants it) rather than re-running the whole task list from scratch. The orchestrator reset `ciFixes` to 0 for this increment.
+
 ## 1 — Run the task loop
 
 ```js
 Skill({ skill: "opsx:apply" })
 ```
 
-`opsx:apply` reads `tasks.md`, runs `superpowers:test-driven-development` per task, commits with conventional-commit messages, and checks off each task. Let it run to completion.
+`opsx:apply` reads `tasks.md`, runs `superpowers:test-driven-development` per task, commits with conventional-commit messages, and checks off each task. Let it run to completion. On a rerun, work the change request instead of the full list.
 
 ## 2 — Watch CI after each push
 
