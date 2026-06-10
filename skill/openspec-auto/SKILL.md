@@ -1,3 +1,8 @@
+---
+name: openspec-auto
+description: Use to autonomously resolve one GitHub issue end-to-end — triage, explore, propose, implement test-first, review, and hand off a ready PR — with a full OpenSpec paper trail. Invoke via /loop so it resumes across iterations.
+---
+
 # openspec-auto
 
 Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper trail: triage an issue, gather requirements, propose a change, implement it test-first, review it, and hand a ready PR to a human.
@@ -95,7 +100,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Workspace.** Ensure an isolated worktree exists for this issue's branch.
 - **Fresh** (from `SELECTED`): assemble the branch as `<prefix>/<issue>-<slug>` and run `setup-workspace.ts <issue> <branch> "<prefix>: <issue title>"` — it checks out the repo's default branch (from `.openspec-auto.json`), creates the branch, anchors an empty commit, opens the draft PR (titled per Conventional Commits), and writes the initial `state.json`. Enter the worktree with `superpowers:using-git-worktrees`, then fetch the issue body and comments (`gh issue view <N> --json body,comments`) to hand to Explore.
-- **Resume** (from `RESUME`): the branch and PR already exist — do **not** recreate them. Reconstruct `state.json` from the PR's agent-state marker, fetch and check out the existing branch, enter its worktree with `superpowers:using-git-worktrees`, then continue at the recorded phase: Explore for `WORKSPACE`/`EXPLORE`/answered `NEEDS_INPUT`; Propose for `PROPOSE`; Proposal review for `PROPOSAL_REVIEW`; Implement for `IMPLEMENT`; Code review for `CODE_REVIEW`. (`IN_REVIEW` is terminal — it is never resumed; see **Wrap up**.)
+- **Resume** (from `RESUME`): the branch and PR already exist — do **not** recreate them. Recover the full prior state from the PR's agent-state marker with `read-pr-state.ts <PR>` — it prints the validated state JSON, including `branch` and `changeName`, which the triage survey does **not** surface (it only carries `phase`/`blocked`). Fetch and check out that `branch`, enter its worktree with `superpowers:using-git-worktrees`, then write the recovered state into the worktree with `write-state.ts '<that JSON>'`. Continue at the recorded phase: Explore for `WORKSPACE`/`EXPLORE`/answered `NEEDS_INPUT`; Propose for `PROPOSE`; Proposal review for `PROPOSAL_REVIEW`; Implement for `IMPLEMENT`; Code review for `CODE_REVIEW`. (`IN_REVIEW` is terminal — it is never resumed; see **Wrap up**.)
 
 **Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → proceed to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS_INPUT` + `blocked:true`, and park (Teardown). `changeName` is still empty here — the change doesn't exist yet; **Propose** creates it and reports the name back, which you then record and pass to every stage from there on (`openspec/changes/<changeName>/`).
 
@@ -107,9 +112,14 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Code review.** Mark the PR ready (`gh pr ready`), then dispatch the code-review sub-agent (`prompts/code-review.md`) with the PR and `changeName` (the spec is its basis — no issue needed). It judges the current diff and returns findings — it changes nothing. Handle its verdict per **Review cycles** (`APPROVED`/minor → Wrap up; blocking → rerun Implement).
 
-**Wrap up.** Set phase `IN_REVIEW` — the agent's work is done and the PR now awaits human review (it is *not* merged; the loop never merges). Invoke `superpowers:finishing-a-development-branch`, then `opsx:archive`, then assign the reviewer (`gh pr edit --add-reviewer <reviewer>`). **This is terminal for the agent — it does not respond to review.** A human merge resolves the issue. If the human instead wants a different solution, they **close the PR** (which abandons it — `survey.ts` ignores closed PRs) and comment on the issue; the next run then sees an open issue with no live agent PR and picks it up fresh, with that comment in the explore/propose context. Archiving the change here is safe precisely because the agent never reopens this work — there is no later Implement that would need the live change directory.
+**Wrap up.** Set phase `IN_REVIEW` — the agent's work is done and the PR now awaits human review (it is *not* merged; the loop never merges). Then, in order:
+1. Run `opsx:archive` on `<changeName>` to archive the completed change.
+2. **Commit the archive** (`chore(openspec): archive <changeName>`) **and push** — the archive is a file move that must land in the PR *before* the human merges, so it has to be committed and pushed here (Teardown's `--force` worktree removal would otherwise discard it).
+3. Request review: try `gh pr edit --add-reviewer <reviewer>` **best-effort** — it fails when the reviewer is also the PR author (e.g. a solo repo), so don't let that abort the run — and **always** post a PR comment `@<reviewer> — ready for review` so the handoff is visible regardless of whether the review request succeeded.
 
-**Teardown — always runs.** Return to the primary checkout and remove the worktree (`git worktree remove --force <path>` — this clears the run's scratch `.openspec-auto/` with it; the PR marker is the durable record). Check out the default branch, pull, then schedule per **Stopping Conditions**.
+**This is terminal for the agent — it does not respond to review.** A human merge resolves the issue. If the human instead wants a different solution, they **close the PR** (which abandons it — `survey.ts` ignores closed PRs) and comment on the issue; the next run then sees an open issue with no live agent PR and picks it up fresh, with that comment in the explore/propose context. Archiving the change here is safe precisely because the agent never reopens this work — there is no later Implement that would need the live change directory.
+
+**Teardown — always runs.** Return to the primary checkout and remove the worktree — prefer the harness `ExitWorktree` tool, mirroring the `EnterWorktree` / `superpowers:using-git-worktrees` entry at Workspace so the harness's worktree tracking stays consistent; fall back to `git worktree remove --force <path>` only if the worktree was created with raw git. Either way this clears the run's scratch `.openspec-auto/`; the PR marker is the durable record. Check out the default branch, pull, then schedule per **Stopping Conditions**.
 
 ## Stopping Conditions
 
@@ -143,7 +153,8 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 | Script | Purpose | Example |
 |--------|---------|---------|
 | `survey.ts` | One-shot GitHub survey → issue table joined to each issue's agent PR + agent-state | `$OSL/node_modules/.bin/tsx $OSL/scripts/survey.ts` |
-| `read-state.ts` | Read and validate `state.json` | `$OSL/node_modules/.bin/tsx $OSL/scripts/read-state.ts` |
+| `read-state.ts` | Read and validate the within-run `state.json` | `$OSL/node_modules/.bin/tsx $OSL/scripts/read-state.ts` |
+| `read-pr-state.ts <PR>` | Recover the full agent-state from a PR's durable marker (resume only — the survey doesn't surface `branch`/`changeName`); prints the JSON, doesn't write | `$OSL/node_modules/.bin/tsx $OSL/scripts/read-pr-state.ts 7` |
 | `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) | `$OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '{"phase":"WORKSPACE","issue":42,"prNumber":7,"branch":"fix/42-slug","changeName":"fix-slug","ciFixes":0,"blocked":false}'` |
 | `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place | `$OSL/node_modules/.bin/tsx $OSL/scripts/sync-pr-state.ts 7` |
 | `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, the latest summary (discovery → proposal → implementation) in the middle, the `Closes #N` footer at the bottom (keeps the issue↔PR link alive) | `$OSL/node_modules/.bin/tsx $OSL/scripts/write-discovery.ts 7 discovery.md` |
@@ -179,5 +190,4 @@ The sub-agents are prompt files (see **Prompt Templates**), not skills. The skil
 | `superpowers:subagent-driven-development` | Implement | implement sub-agent (a sub-agent per task — the one sanctioned nesting) |
 | `superpowers:test-driven-development` | Implement | per-task sub-agent |
 | `superpowers:requesting-code-review` | Code review | code-review sub-agent |
-| `superpowers:finishing-a-development-branch` | Wrap up | orchestrator |
 | `opsx:archive` | Wrap up | orchestrator |

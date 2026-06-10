@@ -25,7 +25,9 @@ Run the `opsx:apply` skill on this change (`{{CHANGE_NAME}}`), using `superpower
 gh pr checks {{PR}} --watch
 ```
 
-On failure: inspect the output, apply a targeted fix, commit, push, and increment `ciFixes` in `state.json` (local, for crash recovery):
+If `gh pr checks` reports that **no checks exist** (the repo has no CI configured — it prints `no checks reported on the '<branch>' branch` and exits non-zero for *that* reason, not a test failure), this is **not** a CI failure: treat CI as green, proceed, and do not count it against the fix cap. Distinguish it from a real failure by the message — "no checks reported" means no CI, not a red check.
+
+On a genuine failure: inspect the output, apply a targeted fix, commit, push, and increment `ciFixes` in `state.json` (local, for crash recovery):
 
 ```bash
 OSL=~/.agents/skills/openspec-auto
