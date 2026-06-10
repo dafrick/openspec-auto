@@ -1,16 +1,29 @@
 ## ADDED Requirements
 
-### Requirement: Triage surveys both issues and in-flight PRs, resume first
-The triage sub-agent SHALL survey open issues and open agent PRs, and SHALL prefer resuming in-flight work over starting a new issue. A PR is resumable when its agent-state marker shows an answered `NEEDS-INPUT` (a human comment newer than the blocking-questions comment) or a non-terminal phase with `blocked: false`; `COMPLETE` and `CI-BLOCKED` PRs are not resumable.
+### Requirement: Triage builds an issue-keyed table, ordered by recency
+The triage sub-agent SHALL build a table keyed by open issue, ordered most-recently-updated first, joining each issue to its associated agent PR (a PR whose body references `#N` or whose branch is `fix/N-*`/`feat/N-*`) and that PR's agent-state (phase, blocked). The issue is the entry point; the joined PR is how in-flight work is discovered.
 
-#### Scenario: Resumable PR takes precedence
-- **WHEN** an open agent PR is resumable
-- **THEN** the triage sub-agent SHALL return `**Status:** RESUME` with the PR number and recorded phase
-- **THEN** it SHALL NOT select a new issue in that run
+#### Scenario: Table joins issues to their agent PRs
+- **WHEN** triage surveys the repository
+- **THEN** it SHALL fetch open issues (with `updatedAt`) and open PRs (with body and comments) and join them by issue number
+- **THEN** it SHALL order the table most-recently-updated first
 
-#### Scenario: No resumable PR — consider new issues
-- **WHEN** no open agent PR is resumable
-- **THEN** the triage sub-agent SHALL evaluate open issues for selection
+---
+
+### Requirement: Resumable work comes first, most advanced wins
+The triage sub-agent SHALL prefer resuming in-flight work over starting a new issue. A PR is resumable when its agent-state shows an answered `NEEDS-INPUT` (a human comment newer than the blocking-questions comment) or a non-terminal phase with `blocked: false`; `COMPLETE` and `CI-BLOCKED` are not resumable.
+
+#### Scenario: Resumable row takes precedence
+- **WHEN** any table row has a resumable agent PR
+- **THEN** the triage sub-agent SHALL return `**Status:** RESUME` and SHALL NOT select a new issue
+
+#### Scenario: Most advanced is resumed
+- **WHEN** more than one row is resumable
+- **THEN** the triage sub-agent SHALL resume the one furthest along (`REVIEW` > `IMPLEMENT` > `PROPOSE` > `EXPLORE` > `WORKSPACE`)
+
+#### Scenario: No resumable row — consider new issues
+- **WHEN** no row is resumable
+- **THEN** the triage sub-agent SHALL evaluate the rows with no agent PR for selection
 
 ---
 
@@ -35,16 +48,16 @@ The triage sub-agent SHALL evaluate every open issue against three criteria. An 
 
 ---
 
-### Requirement: Dedup check prevents duplicate in-flight work
-Before selecting an issue, the triage sub-agent SHALL verify no existing open PR or branch already targets it.
+### Requirement: An issue with an associated agent PR is never newly selected
+Dedup is a property of the table, not a separate step: an issue joined to an agent PR is resumed or skipped, never selected as new work. This prevents opening a second PR for an issue already in flight.
 
-#### Scenario: PR references issue
-- **WHEN** an open PR's body matches `#<N>` followed by a non-digit (standard GitHub closing syntax)
-- **THEN** the triage sub-agent SHALL skip that issue
+#### Scenario: Issue with an in-flight PR is not re-selected
+- **WHEN** an issue's row has an associated agent PR that is not resumable (e.g. `COMPLETE` or `CI-BLOCKED`)
+- **THEN** the triage sub-agent SHALL NOT select that issue as new work
 
-#### Scenario: Branch exists for issue
-- **WHEN** a remote branch matching `fix/<N>-*` or `feat/<N>-*` exists
-- **THEN** the triage sub-agent SHALL skip that issue
+#### Scenario: Association is by PR body or branch
+- **WHEN** an open PR's body matches `#N` (followed by a non-digit) or a branch matches `fix/N-*` / `feat/N-*`
+- **THEN** the triage sub-agent SHALL treat that PR as the issue's associated agent PR
 
 ---
 

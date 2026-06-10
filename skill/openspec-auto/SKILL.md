@@ -92,7 +92,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Bring-up.** Read `.openspec-auto.json` (reviewer, default branch). If it's missing or invalid, stop and tell the user to run init. That's all — the loop reads no local state across runs; in-flight work is discovered by Triage from the open PRs.
 
-**Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It surveys open issues *and* agent PRs and returns the single best next action: `RESUME` (an in-flight PR, with its recorded phase), `SELECTED` (a new issue, with branch prefix + slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`. Resumable work takes precedence over new issues.
+**Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It builds an issue-keyed table (most-recently-updated first), joining each issue to its associated agent PR, and returns the single best next action: `RESUME` (the most-advanced in-flight PR, with its recorded phase), `SELECTED` (a new issue, with branch prefix + slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`. Resumable work takes precedence over new issues.
 
 **Workspace.** Ensure an isolated worktree exists for this issue's branch.
 - **Fresh** (from `SELECTED`): assemble the branch as `<prefix>/<issue>-<slug>` and run `setup-workspace.ts <issue> <branch> "<prefix>: <issue title>"` — it checks out the repo's default branch (from `.openspec-auto.json`), creates the branch, anchors an empty commit, opens the draft PR (titled per Conventional Commits), and writes the initial `state.json`. Enter the worktree with `superpowers:using-git-worktrees`, then fetch the issue body and comments (`gh issue view <N> --json body,comments`) to hand to Explore.
