@@ -35,13 +35,13 @@ The `/loop` form is required so Claude Code re-reads the skill on each iteration
 
 ## Configuration
 
-`init` creates `.openspec-auto.json` at your project root (git-ignored). It contains:
+`init` creates `.openspec-auto.json` at your project root (git-ignored). It captures one-time setup so the loop never has to detect it per run:
 
 ```json
-{ "reviewer": "github-handle" }
+{ "reviewer": "github-handle", "defaultBranch": "main" }
 ```
 
-To re-run init: `npx tsx scripts/init.ts`
+`defaultBranch` is detected from the repo at init time. To re-run init: `npx tsx scripts/init.ts`
 
 ## Limitations
 

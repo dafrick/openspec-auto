@@ -12,14 +12,14 @@ Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper tr
 
 ```mermaid
 flowchart TD
-    A[Assess] -->|resumable state| RJ((resume at saved stage))
-    A -->|answered NEEDS-INPUT PR| E[Explore]
+    A[Assess] -->|resume in-progress / answered NEEDS-INPUT| W[Workspace]
     A -->|nothing in flight| T[Triage]
 
-    T -->|SELECTED| W[Workspace]
+    T -->|SELECTED| W
     T -->|NO_ELIGIBLE / NEEDS_CONTEXT| Z[Teardown]
 
-    W --> E
+    W -->|fresh or NEEDS-INPUT| E[Explore]
+    W -->|in-progress| RJ((continue at saved phase))
     E -->|EXPLORED| P[Propose]
     E -->|NEEDS_INPUT| Z
 
@@ -96,9 +96,13 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 - **No local state** → scan open PRs for an `<!-- agent-state: … -->` marker and apply the same per-phase rules (crash recovery): reconstruct `state.json` and resume, or, for an answered `NEEDS-INPUT` PR, resume at Explore.
 - **Nothing to resume** → Triage.
 
+Any resume path goes through **Workspace** first (resume mode) to re-establish the worktree, then continues at the target phase — the worktree was torn down at the end of the previous run, so the branch must be checked back out before any stage can touch it.
+
 **Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It picks one eligible issue.
 
-**Workspace.** Run `setup-workspace.ts` — it checks out main, creates the `<prefix>/<issue>-<slug>` branch, anchors an empty commit, opens the draft PR, and writes the initial `state.json`. Then enter an isolated workspace with `superpowers:using-git-worktrees`.
+**Workspace.** Ensure an isolated worktree exists for this issue's branch.
+- **Fresh** (from Triage `SELECTED`): assemble the branch as `<prefix>/<issue>-<slug>` and run `setup-workspace.ts <issue> <branch> "<prefix>: <issue title>"` — it checks out the repo's default branch (from `.openspec-auto.json`), creates the branch, anchors an empty commit, opens the draft PR (titled per Conventional Commits), and writes the initial `state.json`. Enter the worktree with `superpowers:using-git-worktrees`, then fetch the issue body and comments (`gh issue view <N> --json body,comments`) to hand to Explore.
+- **Resume** (from Assess): the branch and PR already exist — do **not** recreate them or reinitialize state. Fetch and check out the existing branch, enter its worktree with `superpowers:using-git-worktrees`, then continue at the recorded phase (Explore for an answered NEEDS-INPUT).
 
 **Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → **set the `changeName` to the branch slug** (the kebab slug chosen at Triage, so the change and branch stay paired), record it in `state.json`, and proceed to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, and park (Teardown, no wakeup). The `changeName` is passed to every stage from here on so they all know where to look (`openspec/changes/<changeName>/`).
 
@@ -148,13 +152,14 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 | `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) |
 | `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place |
 | `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, the latest summary (discovery, then proposal summary) below |
-| `setup-workspace.ts <issue> <branch> <title>` | Branch + empty commit + draft PR + initial state |
+| `setup-workspace.ts <issue> <branch> <title>` | Branch (off the config default branch) + empty commit + draft PR + initial state |
 
 **State update protocol:** on every stage transition, `write-state.ts` first, then `sync-pr-state.ts <PR>`. First-time setup: `cd $OSL && npm install`.
 
 ## Red Flags
 
 - **Never resume a `CI-BLOCKED` or `COMPLETE` issue** — a human owns those; triage a fresh one. A `NEEDS-INPUT` PR *is* resumable, but only once the human has answered its blocking questions.
+- **Never recreate the branch/PR on resume** — the worktree was torn down, but the branch and PR persist; re-establish them (Workspace resume mode), don't run `setup-workspace.ts` again.
 - **Never skip Teardown** — it runs on every exit, including terminal stops.
 - **Never start Code review before Implement returns `DONE`**, or Wrap up before a review's blocking findings are cleared (or judged minor).
 - **Never proceed past a review with unresolved blocking findings** — rerun the impl loop; after the third blocking round, post a PR comment for input and park.

@@ -33,13 +33,27 @@ The `init` script SHALL use `gh repo view` to determine the repository owner and
 
 ---
 
+### Requirement: Init detects and stores the default branch
+The `init` script SHALL detect the repository's default branch and store it in `.openspec-auto.json` so the loop reads it from config rather than detecting or hardcoding it per run.
+
+#### Scenario: Default branch detected on init
+- **WHEN** the user runs `init`
+- **THEN** the script SHALL call `gh repo view --json defaultBranchRef` to read the default branch
+- **THEN** it SHALL present it (falling back to `main`) and write the accepted value to `defaultBranch` in `.openspec-auto.json`
+
+#### Scenario: Workspace setup uses the configured default branch
+- **WHEN** `setup-workspace.ts` runs
+- **THEN** it SHALL check out and base the PR on `defaultBranch` from config, not a hardcoded `main`
+
+---
+
 ### Requirement: Config file contains required fields
-The `.openspec-auto.json` file SHALL be valid JSON containing at minimum the `reviewer` field.
+The `.openspec-auto.json` file SHALL be valid JSON containing at minimum the `reviewer` and `defaultBranch` fields.
 
 #### Scenario: Valid config structure
 - **WHEN** `.openspec-auto.json` is read by the skill or helpers
 - **THEN** it SHALL parse as valid JSON
-- **THEN** it SHALL contain a non-empty `reviewer` string field
+- **THEN** it SHALL contain a non-empty `reviewer` string field and a `defaultBranch` string field
 
 #### Scenario: Additional fields are preserved
 - **WHEN** the config file contains fields beyond the minimum set

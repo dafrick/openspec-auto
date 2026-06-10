@@ -19,6 +19,18 @@ function inferReviewer(): string {
   }
 }
 
+function inferDefaultBranch(): string {
+  try {
+    const out = execSync(
+      "gh repo view --json defaultBranchRef -q .defaultBranchRef.name",
+      { encoding: "utf8" }
+    ).trim();
+    return out || "main";
+  } catch {
+    return "main";
+  }
+}
+
 function checkGhCli(): boolean {
   try {
     execSync("gh --version", { stdio: "ignore" });
@@ -71,10 +83,15 @@ async function main(): Promise<void> {
     default: inferredReviewer || undefined,
   });
 
+  const defaultBranch = await input({
+    message: "Default branch",
+    default: inferDefaultBranch(),
+  });
+
   const cwd = process.cwd();
   const configPath = join(cwd, CONFIG_FILE);
 
-  let existing: LoopConfig = { reviewer: "" };
+  let existing: LoopConfig = { reviewer: "", defaultBranch: "main" };
   if (existsSync(configPath)) {
     try {
       existing = JSON.parse(readFileSync(configPath, "utf8")) as LoopConfig;
@@ -83,7 +100,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const config: LoopConfig = { ...existing, reviewer };
+  const config: LoopConfig = { ...existing, reviewer, defaultBranch };
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
   console.log(`\nConfig written to ${CONFIG_FILE}`);
 

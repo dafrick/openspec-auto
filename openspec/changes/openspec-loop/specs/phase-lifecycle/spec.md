@@ -11,11 +11,16 @@ Every invocation of `openspec-auto` SHALL begin with Assess before any other wor
 ---
 
 ### Requirement: Resumable PRs are resumed without re-running prior phases
-If Assess finds a PR with `blocked: false` and an actionable phase, the loop SHALL resume from that phase.
+If Assess finds a PR with `blocked: false` and an actionable phase, the loop SHALL resume from that phase. Because the worktree was torn down at the end of the previous run, the loop SHALL first re-establish the workspace (Workspace stage, resume mode) before running the resumed stage.
+
+#### Scenario: Resume re-establishes the worktree first
+- **WHEN** the loop resumes any in-progress phase
+- **THEN** it SHALL go through Workspace in resume mode — fetch and check out the existing branch and enter its worktree
+- **THEN** it SHALL NOT recreate the branch, PR, or `state.json`
 
 #### Scenario: Resume from IMPLEMENT phase
 - **WHEN** Assess finds a PR with `phase: "IMPLEMENT"` and `blocked: false`
-- **THEN** the loop SHALL jump directly to Implement
+- **THEN** the loop SHALL re-establish the workspace, then jump directly to Implement
 - **THEN** the loop SHALL NOT re-run the earlier stages (Triage through Propose)
 
 #### Scenario: COMPLETE phase is skipped

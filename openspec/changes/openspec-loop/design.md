@@ -45,9 +45,9 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D3: Config File — `.openspec-auto.json`, Git-Ignored
 
-**Decision**: A file `.openspec-auto.json` at the repo root carries per-project config (reviewer GitHub handle, etc.). It is git-ignored. A TypeScript `init` script creates it by inferring values from GitHub (`gh repo view`) and presenting them to the user for acceptance or override.
+**Decision**: A file `.openspec-auto.json` at the repo root carries per-project config (reviewer GitHub handle, default branch, future settings). It is git-ignored. A TypeScript `init` script creates it by inferring values from GitHub (`gh repo view`) and presenting them to the user for acceptance or override. One-time environment facts — like the repository's default branch — are detected here, so the loop reads them from config and is never encumbered by per-run setup detection.
 
-**Rationale**: Config varies per project (different reviewers, future settings). Git-ignoring prevents accidental commits of reviewer handles or future sensitive values. The init script's GitHub-inference default makes setup nearly zero-friction.
+**Rationale**: Config varies per project (different reviewers, default branches, future settings). Git-ignoring prevents accidental commits of reviewer handles or future sensitive values. The init script's GitHub-inference default makes setup nearly zero-friction, and pushing one-time detection into init keeps the hot loop simple and deterministic.
 
 **Alternative considered**: Extend `openspec/config.yaml`. Rejected — that file belongs to the OpenSpec schema/CLI contract; mixing loop config there creates coupling.
 
