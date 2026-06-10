@@ -8,7 +8,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Goals:**
 - Autonomous issue lifecycle: triage → explore → propose → implement → review → wrap-up
-- Resumable: local state file is source of truth; PR description is the human-visible checkpoint; GitHub PR scan is the crash-recovery fallback
+- Resumable across runs: the PR's agent-state marker is the durable record; the loop reads no local state between runs (`state.json` is a within-run cache)
 - Structured: every issue gets an OpenSpec proposal, design, and task list before code is written
 - Light skill files: prerequisites and environment setup live in README and init, not skills
 - Testable: TypeScript helpers have unit tests
@@ -53,27 +53,25 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Alternative considered**: Environment variables. Rejected — verbose to set, invisible to the agent on re-invocation.
 
-**Skill behavior on missing config**: Assess checks for `.openspec-auto.json`. If absent, the skill stops with: *"Config not found. Run `npx openspec-auto init` to set up."*
+**Skill behavior on missing config**: Bring-up checks for `.openspec-auto.json`. If absent, the skill stops with: *"Config not found. Run `npx openspec-auto init` to set up."*
 
 ---
 
-### D4: State in `state.json`; the PR is the human-visible record
+### D4: The PR is the cross-run record; `state.json` is a within-run cache
 
-**Decision**: Machine state lives in `.openspec-auto/state.json` at the worktree root — the source of truth, read on every transition without a network call. Fields: `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`.
+**Decision**: The loop carries **no state between runs**. The durable, cross-run record is the **PR's `<!-- agent-state: {...} -->` marker** (phase, issue, prNumber, branch, changeName, ciFixes, blocked). A new run discovers in-flight work by surveying open PRs (Triage), not by reading any local file. `state.json` under `.openspec-auto/` is only a **within-run cache** — created at Workspace (fresh) or reconstructed from the PR marker (resume), mirrored to the marker at every transition, and deleted at Teardown.
 
-The **PR description** is the human-visible record and the durable checkpoint. It has two regions: the **agent-status block on top** (`## Agent Status` table + `<!-- agent-state: {...} -->` marker, written from `state.json`) and the **latest summary below it** — the discovery output after Explore, replaced by a post-proposal summary once Propose completes (see D5). The description is overwritten as the run progresses, so it always shows where things stand — never an accreting log.
+The **PR description** has two regions: the **agent-status block on top** (`## Agent Status` table + marker) and the **latest summary below it** — the discovery output after Explore, replaced by a post-proposal summary once Propose completes (see D5). It is overwritten as the run progresses, so it always shows the current picture — never an accreting log.
 
-The **PR comments** hold the dialogue: blocking questions the agent raises, and the human's answers. (Contrast: the description is *state*, the comments are *conversation*.)
+The **PR comments** hold the dialogue: blocking questions the agent raises, and the human's answers. (The description is *state*, the comments are *conversation*.)
 
 **Only the orchestrator writes the PR.** Sub-agents return their output (discovery, proposal summary, blocking questions, deferred findings, CI-blocked summaries) and the orchestrator writes the description and posts comments. Sub-agents still commit and push branch contents where stated — that is not a PR write.
 
-**Scripts**: `sync-pr-state.ts` updates only the status block in place; `write-discovery.ts` overwrites the body as status-block + discovery. Both edit through `gh pr edit --body-file` (a temp file), so markdown containing quotes, backticks, or `$` can't break shell quoting.
+**Scripts**: `sync-pr-state.ts` updates the status block in place; `write-discovery.ts` overwrites the summary region. Both edit through `gh pr edit --body-file` (a temp file), so markdown with quotes, backticks, or `$` can't break shell quoting. Within a run, `state.json` keeps state reads off the network in the hot path.
 
-**Rationale**: Decoupling state reads from GitHub keeps rate-limiting and auth-expiry out of the hot path. Keeping the description as a single overwritten summary (rather than appending) means a human opening the PR sees the current picture immediately, and a resuming run can read the prior discovery back without wading through stale versions.
+**Rationale**: Putting the cross-run record on the PR makes the loop independent of any machine or local file — a run can resume on a different machine, and a leftover `state.json` from a crashed run is simply ignored (Bring-up never reads it; Triage rebuilds from the marker). This is simpler and more robust than treating a local file as the source of truth and bolting on crash recovery.
 
-**Crash recovery**: if `state.json` is absent (worktree force-removed, or a new machine), Assess scans open PRs for the `<!-- agent-state: {...} -->` marker and reconstructs `state.json` before resuming.
-
-**Alternative considered**: PR description as sole source of truth. Rejected — every state read would require a GitHub API call.
+**Alternative considered**: local `state.json` as the cross-run source of truth with a PR-scan fallback (the earlier design). Rejected — it couples resumability to local files surviving between runs and needs a separate crash-recovery path; making the PR authoritative collapses both into one mechanism.
 
 **Alternative considered**: exploration written to a tracked file (`discovery.md`) committed to the branch. Rejected — the PR description already survives worktree removal and is where a human looks; a committed scratch file would pollute the diff and need cleanup at archive time.
 
@@ -186,7 +184,7 @@ When a review returns `CHANGES_REQUESTED`, the orchestrator assesses the finding
 
 **R5: PR body size limits** → GitHub PR descriptions cap at ~65,000 chars. The description holds the agent-status block plus exactly one discovery output (overwritten each run, never accreting), so it stays bounded — a pathologically large discovery is the only risk. Mitigation: explore synthesizes rather than dumps, keeping the discovery proportionate to the issue; the dialogue lives in comments, not the body.
 
-**R6: state.json lost on force-remove** → If a worktree is force-removed mid-run (e.g., manual cleanup), `.openspec-auto/state.json` is lost. Assess's GitHub PR scan fallback recovers from this, but only if the PR was synced before the loss. Mitigation: sync to PR description at every phase transition (not just periodically).
+**R6: PR marker stale after a crash** → If a run crashes between a `state.json` write and the PR sync, the marker can lag by one transition. Mitigation: sync the marker immediately after each `state.json` write, so at worst a resumed run repeats the most recent stage (idempotent) rather than losing work.
 
 ## Open Questions
 

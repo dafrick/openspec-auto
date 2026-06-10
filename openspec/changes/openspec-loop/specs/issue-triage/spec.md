@@ -1,5 +1,19 @@
 ## ADDED Requirements
 
+### Requirement: Triage surveys both issues and in-flight PRs, resume first
+The triage sub-agent SHALL survey open issues and open agent PRs, and SHALL prefer resuming in-flight work over starting a new issue. A PR is resumable when its agent-state marker shows an answered `NEEDS-INPUT` (a human comment newer than the blocking-questions comment) or a non-terminal phase with `blocked: false`; `COMPLETE` and `CI-BLOCKED` PRs are not resumable.
+
+#### Scenario: Resumable PR takes precedence
+- **WHEN** an open agent PR is resumable
+- **THEN** the triage sub-agent SHALL return `**Status:** RESUME` with the PR number and recorded phase
+- **THEN** it SHALL NOT select a new issue in that run
+
+#### Scenario: No resumable PR — consider new issues
+- **WHEN** no open agent PR is resumable
+- **THEN** the triage sub-agent SHALL evaluate open issues for selection
+
+---
+
 ### Requirement: Issue must pass all three eligibility criteria
 The triage sub-agent SHALL evaluate every open issue against three criteria. An issue must pass all three to be eligible.
 
@@ -49,8 +63,12 @@ From eligible issues, the triage sub-agent SHALL select the one with the highest
 ---
 
 ### Requirement: Triage sub-agent returns a structured result
-The triage sub-agent SHALL return a structured result the orchestrator can parse: issue number, issue type (`bug` → `fix`, `enhancement` → `feat`), and a slug derived from the issue title.
+The triage sub-agent SHALL return one of: `RESUME` (PR number + recorded phase), `SELECTED` (issue number, branch type prefix `fix`/`feat`, and a 3–5 word kebab-case slug from the title), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`.
 
-#### Scenario: Result includes branch-ready fields
-- **WHEN** the triage sub-agent selects an issue
+#### Scenario: SELECTED includes branch-ready fields
+- **WHEN** the triage sub-agent selects a new issue
 - **THEN** its output SHALL include: issue number, branch type prefix (`fix` or `feat`), and a 3–5 word kebab-case slug from the issue title
+
+#### Scenario: RESUME identifies the PR and phase
+- **WHEN** the triage sub-agent resumes an in-flight PR
+- **THEN** its output SHALL include the PR number and the recorded phase

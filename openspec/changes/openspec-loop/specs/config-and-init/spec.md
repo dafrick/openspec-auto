@@ -62,7 +62,7 @@ The `.openspec-auto.json` file SHALL be valid JSON containing at minimum the `re
 ---
 
 ### Requirement: Orchestrator fails fast if config is missing
-The orchestrator skill SHALL check for `.openspec-auto.json` at the start of Assess. If the file is absent or invalid, it SHALL stop with a clear error message.
+The orchestrator skill SHALL check for `.openspec-auto.json` at Bring-up. If the file is absent or invalid, it SHALL stop with a clear error message.
 
 #### Scenario: Config missing at startup
 - **WHEN** `openspec-auto` is invoked and `.openspec-auto.json` does not exist
@@ -71,7 +71,7 @@ The orchestrator skill SHALL check for `.openspec-auto.json` at the start of Ass
 
 #### Scenario: Config present and valid at startup
 - **WHEN** `.openspec-auto.json` exists and is valid JSON with a non-empty `reviewer` field
-- **THEN** Assess SHALL proceed normally
+- **THEN** Bring-up SHALL proceed to Triage normally
 
 ---
 

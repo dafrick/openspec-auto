@@ -1,40 +1,31 @@
 ## ADDED Requirements
 
-### Requirement: Each invocation begins with state assessment
-Every invocation of `openspec-auto` SHALL begin with Assess before any other work.
+### Requirement: Each invocation begins with Bring-up, then Triage
+Every invocation of `openspec-auto` SHALL begin with Bring-up (read config only), then Triage, before any other work. The loop SHALL NOT read local state to decide what to do.
 
-#### Scenario: Assess runs first on every invocation
+#### Scenario: Bring-up then Triage on every invocation
 - **WHEN** the orchestrator skill is invoked
-- **THEN** it SHALL fetch all open PRs containing an `<!-- agent-state:` marker before taking any other action
-- **THEN** it SHALL evaluate each found PR's state before proceeding to triage or resumption
+- **THEN** Bring-up SHALL read `.openspec-auto.json` and stop if it is missing or invalid
+- **THEN** Triage SHALL survey open issues and agent PRs to decide whether to resume in-flight work or start a new issue
 
 ---
 
-### Requirement: Resumable PRs are resumed without re-running prior phases
-If Assess finds a PR with `blocked: false` and an actionable phase, the loop SHALL resume from that phase. Because the worktree was torn down at the end of the previous run, the loop SHALL first re-establish the workspace (Workspace stage, resume mode) before running the resumed stage.
+### Requirement: Resuming an in-flight PR re-establishes the workspace and continues at its phase
+When Triage returns `RESUME`, the orchestrator SHALL re-establish the workspace and continue at the PR's recorded phase without re-running earlier stages. Because the worktree was torn down at the end of the previous run, it SHALL first go through Workspace in resume mode.
 
 #### Scenario: Resume re-establishes the worktree first
-- **WHEN** the loop resumes any in-progress phase
-- **THEN** it SHALL go through Workspace in resume mode — fetch and check out the existing branch and enter its worktree
-- **THEN** it SHALL NOT recreate the branch, PR, or `state.json`
+- **WHEN** the orchestrator handles a `RESUME`
+- **THEN** Workspace (resume mode) SHALL reconstruct `state.json` from the PR's agent-state marker, fetch and check out the existing branch, and enter its worktree
+- **THEN** it SHALL NOT recreate the branch or PR
 
 #### Scenario: Resume from IMPLEMENT phase
-- **WHEN** Assess finds a PR with `phase: "IMPLEMENT"` and `blocked: false`
-- **THEN** the loop SHALL re-establish the workspace, then jump directly to Implement
-- **THEN** the loop SHALL NOT re-run the earlier stages (Triage through Propose)
-
-#### Scenario: COMPLETE phase is skipped
-- **WHEN** Assess finds a PR with `phase: "COMPLETE"`
-- **THEN** the loop SHALL skip that PR and treat it as if it were not present
+- **WHEN** Triage returns `RESUME` with `phase: "IMPLEMENT"`
+- **THEN** the loop SHALL re-establish the workspace, then continue at Implement
+- **THEN** the loop SHALL NOT re-run the earlier stages (Explore through Propose)
 
 #### Scenario: Answered NEEDS-INPUT resumes at Explore
-- **WHEN** Assess finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
-- **THEN** the loop SHALL resume at the Explore phase, passing the PR description and comments as context
-- **THEN** it SHALL NOT re-run Triage or Workspace
-
-#### Scenario: No resumable PR found
-- **WHEN** Assess finds no PRs with a resumable state
-- **THEN** the loop SHALL proceed to Triage
+- **WHEN** Triage returns `RESUME` for an answered `NEEDS-INPUT` PR
+- **THEN** the loop SHALL re-establish the workspace, then continue at Explore, passing the PR description and comments as context
 
 ---
 
@@ -97,6 +88,10 @@ The orchestrator SHALL derive the OpenSpec `changeName` once Explore succeeds, r
 
 ### Requirement: Orchestrator delegates stages to sub-agents
 The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file. After Propose, an independent `proposal-review` sub-agent SHALL judge the artifacts before Implement begins.
+
+#### Scenario: Triage sub-agent — RESUME
+- **WHEN** `triage` returns `**Status:** RESUME` with a PR number and recorded phase
+- **THEN** the orchestrator SHALL proceed to Workspace in resume mode and continue at the recorded phase
 
 #### Scenario: Triage sub-agent — SELECTED
 - **WHEN** Triage begins and `triage` returns `**Status:** SELECTED`

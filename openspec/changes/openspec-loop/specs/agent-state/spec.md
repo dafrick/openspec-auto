@@ -1,15 +1,19 @@
 ## ADDED Requirements
 
-### Requirement: Local state file is the source of truth
-Agent state SHALL be stored in `.openspec-auto/state.json` at the worktree root. This file is the authoritative record of the current phase, issue, and counters. All state reads during an active run SHALL read from this file.
+### Requirement: The PR marker is the cross-run record; state.json is a within-run cache
+The durable, cross-run record of agent state SHALL be the PR's `<!-- agent-state: {...} -->` marker. `.openspec-auto/state.json` SHALL be a within-run cache only — created at Workspace, mirrored to the marker at every transition, and deleted at Teardown. The loop SHALL NOT rely on any local file surviving between runs.
 
-#### Scenario: State file created on Workspace
-- **WHEN** the orchestrator enters Workspace
+#### Scenario: State file created on Workspace (fresh)
+- **WHEN** the orchestrator sets up a fresh workspace
 - **THEN** it SHALL create `.openspec-auto/state.json` with initial values: `phase: "WORKSPACE"`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes: 0`, `blocked: false`
 
-#### Scenario: State file updated on phase transition
-- **WHEN** the orchestrator transitions from one phase to the next
-- **THEN** it SHALL update `.openspec-auto/state.json` with the new phase value before doing any work for that phase
+#### Scenario: State mirrored to the PR marker on transition
+- **WHEN** the orchestrator transitions to a new phase
+- **THEN** it SHALL update `state.json` and sync the PR's agent-status block (and marker) to match, before doing the phase's work
+
+#### Scenario: State file deleted at Teardown
+- **WHEN** Teardown runs
+- **THEN** it SHALL delete `.openspec-auto/`; the PR marker remains the record of where the run ended
 
 #### Scenario: State file fields
 - **WHEN** `.openspec-auto/state.json` is read
@@ -17,22 +21,21 @@ Agent state SHALL be stored in `.openspec-auto/state.json` at the worktree root.
 
 ---
 
-### Requirement: Assess reads local state first, falls back to GitHub scan
-Assess SHALL check for `.openspec-auto/state.json` before making any GitHub API calls.
+### Requirement: In-flight work is discovered from open PRs, not local files
+Bring-up SHALL read only configuration. Discovery of resumable in-flight work SHALL come from surveying open PRs' agent-state markers (Triage), never from a local state file.
 
-#### Scenario: Local state file exists
-- **WHEN** Assess starts and `.openspec-auto/state.json` exists and is valid
-- **THEN** the orchestrator SHALL use the local file as the current state
-- **THEN** it SHALL NOT scan GitHub PRs for agent-state markers
+#### Scenario: Bring-up reads no local state
+- **WHEN** the loop starts
+- **THEN** Bring-up SHALL read `.openspec-auto.json` (config) only
+- **THEN** it SHALL NOT read `.openspec-auto/state.json`
 
-#### Scenario: Local state file absent (crash recovery)
-- **WHEN** Assess starts and `.openspec-auto/state.json` does not exist
-- **THEN** the orchestrator SHALL scan open GitHub PRs for `<!-- agent-state: {...} -->` markers
-- **THEN** if a resumable PR is found, it SHALL reconstruct `state.json` from the PR body before resuming
+#### Scenario: Resume reconstructs the cache from the PR marker
+- **WHEN** Triage returns `RESUME` for an in-flight PR
+- **THEN** Workspace SHALL reconstruct `state.json` from that PR's agent-state marker before continuing
 
-#### Scenario: No local file and no resumable PR
-- **WHEN** Assess finds no local state file and no resumable agent PR on GitHub
-- **THEN** the orchestrator SHALL proceed to Triage
+#### Scenario: Leftover state.json is ignored
+- **WHEN** a previous run crashed and left a stale `.openspec-auto/state.json`
+- **THEN** the next run SHALL ignore it (Bring-up does not read it; Triage rebuilds from PR markers)
 
 ---
 
@@ -91,18 +94,18 @@ The `phase` field in state.json and the PR description SHALL only contain one of
 The `blocked` field gates whether the orchestrator resumes an existing issue. A `CI-BLOCKED` issue is human-owned and never auto-resumes. A `NEEDS-INPUT` issue is the one exception: it resumes once the human has answered its blocking questions.
 
 #### Scenario: CI-BLOCKED is not resumed
-- **WHEN** Assess reads `blocked: true` with phase `CI-BLOCKED`
-- **THEN** the orchestrator SHALL NOT resume the issue
-- **THEN** it SHALL look for other work (Triage)
+- **WHEN** Triage sees a PR marker with `blocked: true` and phase `CI-BLOCKED`
+- **THEN** it SHALL NOT mark the PR resumable
+- **THEN** it SHALL look for other work
 
 #### Scenario: Answered NEEDS-INPUT is resumed
-- **WHEN** Assess finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
-- **THEN** the orchestrator SHALL resume it at the Explore stage with the PR context
+- **WHEN** Triage finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
+- **THEN** it SHALL return `RESUME`, and the orchestrator SHALL continue at the Explore stage with the PR context
 
 #### Scenario: Unanswered NEEDS-INPUT stays parked
-- **WHEN** Assess finds a `NEEDS-INPUT` PR with no newer human comment
-- **THEN** the orchestrator SHALL leave it parked and look for other work
+- **WHEN** Triage finds a `NEEDS-INPUT` PR with no newer human comment
+- **THEN** it SHALL leave it parked and look for other work
 
 #### Scenario: Non-blocked resumable state
-- **WHEN** Assess reads `blocked: false` with an actionable phase
+- **WHEN** Triage sees a PR marker with `blocked: false` and an actionable phase
 - **THEN** the orchestrator SHALL resume from the indicated phase
