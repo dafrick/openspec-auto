@@ -13,6 +13,19 @@ Autonomous GitHub issue lifecycle agent. Manages the full issue lifecycle — tr
 - `gh` CLI (authenticated)
 - Node.js 20+
 - **The target repository must be OpenSpec-initialized** (`openspec init`) — `propose` creates and applies changes under `openspec/changes/`. The loop assumes this is in place and does not set it up for you.
+- **Unattended tool permissions.** The loop runs `git push` and `gh` commands without a human present. If your harness gates tool calls behind permission prompts, pre-authorize them or the loop stalls on the first push. In Claude Code, add to the project's `.claude/settings.json`:
+  ```json
+  {
+    "permissions": {
+      "allow": [
+        "Bash(git push *)",
+        "Bash(gh pr *)",
+        "Bash(gh issue *)",
+        "Bash(gh run *)"
+      ]
+    }
+  }
+  ```
 
 ## Install
 
