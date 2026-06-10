@@ -3,12 +3,12 @@
 ### Requirement: Local state file is the source of truth
 Agent state SHALL be stored in `.openspec-auto/state.json` at the worktree root. This file is the authoritative record of the current phase, issue, and counters. All state reads during an active run SHALL read from this file.
 
-#### Scenario: State file created on Phase 2
-- **WHEN** the main loop enters Phase 2 (Workspace Setup)
+#### Scenario: State file created on Workspace
+- **WHEN** the orchestrator enters Workspace
 - **THEN** it SHALL create `.openspec-auto/state.json` with initial values: `phase: "WORKSPACE"`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes: 0`, `blocked: false`
 
 #### Scenario: State file updated on phase transition
-- **WHEN** the main loop transitions from one phase to the next
+- **WHEN** the orchestrator transitions from one phase to the next
 - **THEN** it SHALL update `.openspec-auto/state.json` with the new phase value before doing any work for that phase
 
 #### Scenario: State file fields
@@ -17,22 +17,22 @@ Agent state SHALL be stored in `.openspec-auto/state.json` at the worktree root.
 
 ---
 
-### Requirement: Phase 0 reads local state first, falls back to GitHub scan
-Phase 0 SHALL check for `.openspec-auto/state.json` before making any GitHub API calls.
+### Requirement: Assess reads local state first, falls back to GitHub scan
+Assess SHALL check for `.openspec-auto/state.json` before making any GitHub API calls.
 
 #### Scenario: Local state file exists
-- **WHEN** Phase 0 starts and `.openspec-auto/state.json` exists and is valid
-- **THEN** the main loop SHALL use the local file as the current state
+- **WHEN** Assess starts and `.openspec-auto/state.json` exists and is valid
+- **THEN** the orchestrator SHALL use the local file as the current state
 - **THEN** it SHALL NOT scan GitHub PRs for agent-state markers
 
 #### Scenario: Local state file absent (crash recovery)
-- **WHEN** Phase 0 starts and `.openspec-auto/state.json` does not exist
-- **THEN** the main loop SHALL scan open GitHub PRs for `<!-- agent-state: {...} -->` markers
+- **WHEN** Assess starts and `.openspec-auto/state.json` does not exist
+- **THEN** the orchestrator SHALL scan open GitHub PRs for `<!-- agent-state: {...} -->` markers
 - **THEN** if a resumable PR is found, it SHALL reconstruct `state.json` from the PR body before resuming
 
 #### Scenario: No local file and no resumable PR
-- **WHEN** Phase 0 finds no local state file and no resumable agent PR on GitHub
-- **THEN** the main loop SHALL proceed to Phase 1 (Triage)
+- **WHEN** Assess finds no local state file and no resumable agent PR on GitHub
+- **THEN** the orchestrator SHALL proceed to Triage
 
 ---
 

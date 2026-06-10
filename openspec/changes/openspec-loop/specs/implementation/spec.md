@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Implementation follows test-driven development
-The `openspec-auto-implement` sub-agent SHALL write failing tests before writing implementation code for each task.
+The `implement` sub-agent SHALL write failing tests before writing implementation code for each task.
 
 #### Scenario: Test written before implementation
 - **WHEN** the implement sub-agent begins a task
@@ -42,7 +42,7 @@ After each `git push`, the implement sub-agent SHALL wait for all CI checks to c
 The `ciFixes` counter in agent state tracks CI fix attempts for the current phase. When it reaches 3, the sub-agent SHALL stop.
 
 #### Scenario: Third CI failure triggers stop
-- **WHEN** the `ciFixes` counter reaches 3 within Phase 5
+- **WHEN** the `ciFixes` counter reaches 3 within Implement
 - **THEN** the sub-agent SHALL post a CI-blocked comment with a summary of all failures and attempts
 - **THEN** it SHALL update agent state to `CI-BLOCKED` with `blocked: true`
 - **THEN** it SHALL exit
@@ -67,4 +67,4 @@ The sub-agent SHALL implement tasks in the order specified in `tasks.md` and che
 
 #### Scenario: All tasks completed
 - **WHEN** all tasks in `tasks.md` are checked off and CI passes
-- **THEN** the sub-agent SHALL exit with a success signal for the main loop
+- **THEN** the sub-agent SHALL exit with a success signal for the orchestrator

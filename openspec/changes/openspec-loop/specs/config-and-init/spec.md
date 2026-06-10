@@ -47,8 +47,8 @@ The `.openspec-auto.json` file SHALL be valid JSON containing at minimum the `re
 
 ---
 
-### Requirement: Main loop fails fast if config is missing
-The main loop skill SHALL check for `.openspec-auto.json` at the start of Phase 0. If the file is absent or invalid, it SHALL stop with a clear error message.
+### Requirement: Orchestrator fails fast if config is missing
+The orchestrator skill SHALL check for `.openspec-auto.json` at the start of Assess. If the file is absent or invalid, it SHALL stop with a clear error message.
 
 #### Scenario: Config missing at startup
 - **WHEN** `openspec-auto` is invoked and `.openspec-auto.json` does not exist
@@ -57,7 +57,7 @@ The main loop skill SHALL check for `.openspec-auto.json` at the start of Phase 
 
 #### Scenario: Config present and valid at startup
 - **WHEN** `.openspec-auto.json` exists and is valid JSON with a non-empty `reviewer` field
-- **THEN** Phase 0 SHALL proceed normally
+- **THEN** Assess SHALL proceed normally
 
 ---
 

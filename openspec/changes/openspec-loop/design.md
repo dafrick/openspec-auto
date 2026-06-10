@@ -2,7 +2,7 @@
 
 `openspec-auto` is a new repository containing Claude Code skill files and TypeScript tooling that implements an autonomous GitHub issue lifecycle agent. It has no prior codebase; all decisions here are greenfield. The system coordinates with the OpenSpec CLI and skills ecosystem, the `gh` CLI, and the Claude Code harness (worktree tools, Skill invocation, Agent spawning).
 
-The design is informed by two constraints: (1) the Claude Code `/loop` mechanism re-reads the invoking skill on each iteration — so the main skill must be a slash command, not a file path; (2) context compression causes instruction drift across long runs — so expensive phases must run as isolated sub-agents with their own skill files.
+The design is informed by two constraints: (1) the Claude Code `/loop` mechanism re-reads the invoking skill on each iteration — so the main skill must be a slash command, not a file path; (2) context compression causes instruction drift across long runs — so expensive stages must run as isolated sub-agents with their own prompt files.
 
 ## Goals / Non-Goals
 
@@ -23,9 +23,9 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D1: Orchestrator + Sub-Agent Architecture
 
-**Decision**: The main `openspec-auto` skill manages the phase state machine and delegates each expensive phase to a dedicated sub-agent skill (`openspec-auto-triage`, `openspec-auto-explore`, `openspec-auto-implement`, `openspec-auto-review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
+**Decision**: The `openspec-auto` orchestrator skill manages the stage state machine and delegates each expensive stage to a dedicated sub-agent (`triage`, `explore`, `implement`, `review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
 
-**Rationale**: Each sub-agent runs in an isolated context window — no instruction drift, no accumulated context from prior phases. The main loop receives a structured result and advances the state machine. This mirrors how real pipelines work: a coordinator delegates to workers.
+**Rationale**: Each sub-agent runs in an isolated context window — no instruction drift, no accumulated context from prior phases. The orchestrator receives a structured result and advances the state machine. This mirrors how real pipelines work: a coordinator delegates to workers.
 
 **Alternative considered**: Inline all phases into one large skill file. Rejected — context compression across a full implementation run (explore → 50 commits → review) would cause the agent to forget early instructions.
 
@@ -53,7 +53,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Alternative considered**: Environment variables. Rejected — verbose to set, invisible to the agent on re-invocation.
 
-**Skill behavior on missing config**: Phase 0 checks for `.openspec-auto.json`. If absent, the skill stops with: *"Config not found. Run `npx openspec-auto init` to set up."*
+**Skill behavior on missing config**: Assess checks for `.openspec-auto.json`. If absent, the skill stops with: *"Config not found. Run `npx openspec-auto init` to set up."*
 
 ---
 
@@ -138,9 +138,9 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 ### D10: `ciFixes` Counter Resets Per Phase
 
-**Decision**: The `ciFixes` field in agent-state tracks CI fix attempts within the current phase only. It resets to 0 when Phase 6 starts.
+**Decision**: The `ciFixes` field in agent-state tracks CI fix attempts within the current phase only. It resets to 0 when Review starts.
 
-**Rationale**: A failure in Phase 5 implementation is a different failure mode from a failure in Phase 6 post-review. Cumulative counting would block Phase 6 on issues already resolved. Per-phase counting gives each phase a fair 3-attempt budget.
+**Rationale**: A failure in Implement implementation is a different failure mode from a failure in Review post-review. Cumulative counting would block Review on issues already resolved. Per-phase counting gives each phase a fair 3-attempt budget.
 
 ---
 
@@ -166,13 +166,13 @@ The **PR comments** hold the dialogue: blocking questions the agent raises, and 
 
 **R3: `gh` rate limiting** → Fetching 50 issues + comments per iteration could hit GitHub API limits on busy repos. Mitigation: `--limit 50` is already a cap; the skill can be tuned to `--limit 20` for high-volume repos.
 
-**R4: Sub-agent context size** → A large codebase exploration in `openspec-auto-explore` could fill a sub-agent's context window before producing output. Mitigation: the explore skill explicitly scopes investigation to files/modules relevant to the issue, not a full repo crawl.
+**R4: Sub-agent context size** → A large codebase exploration could fill the `explore` sub-agent's context window before it produces output. Mitigation: the explore prompt explicitly scopes investigation to files/modules relevant to the issue, not a full repo crawl.
 
 **R5: PR body size limits** → GitHub PR descriptions cap at ~65,000 chars. The description holds the agent-status block plus exactly one discovery output (overwritten each run, never accreting), so it stays bounded — a pathologically large discovery is the only risk. Mitigation: explore synthesizes rather than dumps, keeping the discovery proportionate to the issue; the dialogue lives in comments, not the body.
 
-**R6: state.json lost on force-remove** → If a worktree is force-removed mid-run (e.g., manual cleanup), `.openspec-auto/state.json` is lost. Phase 0's GitHub PR scan fallback recovers from this, but only if the PR was synced before the loss. Mitigation: sync to PR description at every phase transition (not just periodically).
+**R6: state.json lost on force-remove** → If a worktree is force-removed mid-run (e.g., manual cleanup), `.openspec-auto/state.json` is lost. Assess's GitHub PR scan fallback recovers from this, but only if the PR was synced before the loss. Mitigation: sync to PR description at every phase transition (not just periodically).
 
 ## Open Questions
 
-- Should `openspec-auto-implement` and `openspec-auto-review` share a single "CI fix" sub-agent, or keep CI fixing inline in each? (Current: inline — simpler, revisit if duplication is painful.)
+- Should `implement` and `review` share a single "CI fix" sub-agent, or keep CI fixing inline in each? (Current: inline — simpler, revisit if duplication is painful.)
 - Should the init script write the `.gitignore` entry automatically, or instruct the user to add it? (Current lean: write it automatically, show what was added.)

@@ -44,12 +44,12 @@ From eligible issues, the triage sub-agent SHALL select the one with the highest
 #### Scenario: No eligible issues found
 - **WHEN** all open issues are ineligible or have active PRs/branches
 - **THEN** the triage sub-agent SHALL return a signal indicating no eligible issue
-- **THEN** the main loop SHALL stop and schedule a 2-hour wakeup
+- **THEN** the orchestrator SHALL stop and schedule a 2-hour wakeup
 
 ---
 
 ### Requirement: Triage sub-agent returns a structured result
-The triage sub-agent SHALL return a structured result the main loop can parse: issue number, issue type (`bug` → `fix`, `enhancement` → `feat`), and a slug derived from the issue title.
+The triage sub-agent SHALL return a structured result the orchestrator can parse: issue number, issue type (`bug` → `fix`, `enhancement` → `feat`), and a slug derived from the issue title.
 
 #### Scenario: Result includes branch-ready fields
 - **WHEN** the triage sub-agent selects an issue

@@ -1,64 +1,64 @@
 ## ADDED Requirements
 
 ### Requirement: Each invocation begins with state assessment
-Every invocation of `openspec-auto` SHALL begin with Phase 0 (Assess State) before any other work.
+Every invocation of `openspec-auto` SHALL begin with Assess before any other work.
 
-#### Scenario: Phase 0 runs first on every invocation
-- **WHEN** the main loop skill is invoked
+#### Scenario: Assess runs first on every invocation
+- **WHEN** the orchestrator skill is invoked
 - **THEN** it SHALL fetch all open PRs containing an `<!-- agent-state:` marker before taking any other action
 - **THEN** it SHALL evaluate each found PR's state before proceeding to triage or resumption
 
 ---
 
 ### Requirement: Resumable PRs are resumed without re-running prior phases
-If Phase 0 finds a PR with `blocked: false` and an actionable phase, the loop SHALL resume from that phase.
+If Assess finds a PR with `blocked: false` and an actionable phase, the loop SHALL resume from that phase.
 
 #### Scenario: Resume from IMPLEMENT phase
-- **WHEN** Phase 0 finds a PR with `phase: "IMPLEMENT"` and `blocked: false`
-- **THEN** the loop SHALL jump directly to Phase 5 (Implement)
-- **THEN** the loop SHALL NOT re-run Phases 1–4
+- **WHEN** Assess finds a PR with `phase: "IMPLEMENT"` and `blocked: false`
+- **THEN** the loop SHALL jump directly to Implement
+- **THEN** the loop SHALL NOT re-run the earlier stages (Triage through Propose)
 
 #### Scenario: COMPLETE phase is skipped
-- **WHEN** Phase 0 finds a PR with `phase: "COMPLETE"`
+- **WHEN** Assess finds a PR with `phase: "COMPLETE"`
 - **THEN** the loop SHALL skip that PR and treat it as if it were not present
 
 #### Scenario: Answered NEEDS-INPUT resumes at Explore
-- **WHEN** Phase 0 finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
+- **WHEN** Assess finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
 - **THEN** the loop SHALL resume at the Explore phase, passing the PR description and comments as context
 - **THEN** it SHALL NOT re-run Triage or Workspace
 
 #### Scenario: No resumable PR found
-- **WHEN** Phase 0 finds no PRs with a resumable state
-- **THEN** the loop SHALL proceed to Phase 1 (Triage)
+- **WHEN** Assess finds no PRs with a resumable state
+- **THEN** the loop SHALL proceed to Triage
 
 ---
 
-### Requirement: Phase 8 (Teardown) always runs
-Phase 8 SHALL execute regardless of whether the iteration completed successfully, entered NEEDS-INPUT, or entered CI-BLOCKED.
+### Requirement: Teardown always runs
+Teardown SHALL execute regardless of whether the iteration completed successfully, entered NEEDS-INPUT, or entered CI-BLOCKED.
 
 #### Scenario: Successful iteration teardown
-- **WHEN** Phase 7 (Wrap-up) completes
-- **THEN** Phase 8 SHALL run, exit the worktree, check out main, and pull latest
+- **WHEN** Wrap up completes
+- **THEN** Teardown SHALL run, exit the worktree, check out main, and pull latest
 
 #### Scenario: NEEDS-INPUT teardown
-- **WHEN** Phase 3 determines critical questions require human input
-- **THEN** Phase 8 SHALL run before the loop schedules a wakeup or stops
+- **WHEN** Explore determines critical questions require human input
+- **THEN** Teardown SHALL run before the loop schedules a wakeup or stops
 
 #### Scenario: CI-BLOCKED teardown
-- **WHEN** Phase 5 or Phase 6 exhausts CI fix attempts
-- **THEN** Phase 8 SHALL run before the loop stops
+- **WHEN** Implement or Review exhausts CI fix attempts
+- **THEN** Teardown SHALL run before the loop stops
 
 ---
 
 ### Requirement: Loop schedules next wakeup after teardown
-After Phase 8 completes, the loop SHALL schedule the next wakeup using `ScheduleWakeup`.
+After Teardown completes, the loop SHALL schedule the next wakeup using `ScheduleWakeup`.
 
 #### Scenario: Active issue queue wakeup
 - **WHEN** the iteration completed work (success, NEEDS-INPUT, or CI-BLOCKED)
 - **THEN** the loop SHALL schedule a wakeup in 30 minutes
 
 #### Scenario: No eligible issues wakeup
-- **WHEN** Phase 1 found no eligible issues
+- **WHEN** Triage found no eligible issues
 - **THEN** the loop SHALL schedule a wakeup in 2 hours
 
 ---
@@ -67,7 +67,7 @@ After Phase 8 completes, the loop SHALL schedule the next wakeup using `Schedule
 The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineligible, when `gh` authentication has expired, or when NEEDS-INPUT or CI-BLOCKED state is entered.
 
 #### Scenario: All issues in-flight
-- **WHEN** Phase 1 finds that every open issue either has an agent PR or is ineligible
+- **WHEN** Triage finds that every open issue either has an agent PR or is ineligible
 - **THEN** the loop SHALL output a message explaining why it stopped and SHALL NOT call ScheduleWakeup
 
 #### Scenario: Authentication failure
@@ -80,43 +80,43 @@ The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineli
 
 ---
 
-### Requirement: Main loop delegates phases to sub-agent skills
-Phases 1 (Triage), 3 (Explore), 5 (Implement), and 6 (Review) SHALL be executed as sub-agents invoked via the `Agent` tool, each using their dedicated skill file.
+### Requirement: Orchestrator delegates stages to sub-agents
+The Triage, Explore, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file.
 
 #### Scenario: Triage sub-agent — SELECTED
-- **WHEN** Phase 1 begins and `openspec-auto-triage` returns `**Status:** SELECTED`
-- **THEN** the main loop SHALL read the issue number, branch prefix, and slug from the prose
-- **THEN** it SHALL proceed to Phase 2 with those values
+- **WHEN** Triage begins and `triage` returns `**Status:** SELECTED`
+- **THEN** the orchestrator SHALL read the issue number, branch prefix, and slug from the prose
+- **THEN** it SHALL proceed to Workspace with those values
 
 #### Scenario: Triage sub-agent — NO_ELIGIBLE
-- **WHEN** `openspec-auto-triage` returns `**Status:** NO_ELIGIBLE`
-- **THEN** the main loop SHALL proceed to Phase 8 and schedule a 2-hour wakeup
+- **WHEN** `triage` returns `**Status:** NO_ELIGIBLE`
+- **THEN** the orchestrator SHALL proceed to Teardown and schedule a 2-hour wakeup
 
 #### Scenario: Explore sub-agent — EXPLORED
-- **WHEN** `openspec-auto-explore` returns `**Status:** EXPLORED`
-- **THEN** the main loop SHALL proceed to Phase 4 (Propose)
+- **WHEN** `explore` returns `**Status:** EXPLORED`
+- **THEN** the orchestrator SHALL proceed to Propose
 
 #### Scenario: Explore sub-agent — NEEDS_INPUT
 - **WHEN** `explore` returns `**Status:** NEEDS_INPUT`
-- **THEN** the main loop SHALL write the discovery output to the PR description
+- **THEN** the orchestrator SHALL write the discovery output to the PR description
 - **THEN** it SHALL post the blocking questions as a PR comment and enter NEEDS-INPUT state
 
 #### Scenario: Implement sub-agent — DONE
-- **WHEN** `openspec-auto-implement` returns `**Status:** DONE`
-- **THEN** the main loop SHALL proceed to Phase 6 (Review)
+- **WHEN** `implement` returns `**Status:** DONE`
+- **THEN** the orchestrator SHALL proceed to Review
 
 #### Scenario: Implement sub-agent — BLOCKED or CI_BLOCKED
-- **WHEN** `openspec-auto-implement` returns `**Status:** BLOCKED` or `**Status:** CI_BLOCKED`
-- **THEN** the main loop SHALL update agent state accordingly and proceed to Phase 8
+- **WHEN** `implement` returns `**Status:** BLOCKED` or `**Status:** CI_BLOCKED`
+- **THEN** the orchestrator SHALL update agent state accordingly and proceed to Teardown
 
 #### Scenario: Review sub-agent — APPROVED
-- **WHEN** `openspec-auto-review` returns `**Status:** APPROVED`
-- **THEN** the main loop SHALL proceed to Phase 7 (Wrap-up)
+- **WHEN** `review` returns `**Status:** APPROVED`
+- **THEN** the orchestrator SHALL proceed to Wrap up
 
 #### Scenario: Review sub-agent — CHANGES_REQUESTED
-- **WHEN** `openspec-auto-review` returns `**Status:** CHANGES_REQUESTED`
-- **THEN** the main loop SHALL read the findings from the prose and implement accepted changes
+- **WHEN** `review` returns `**Status:** CHANGES_REQUESTED`
+- **THEN** the orchestrator SHALL read the findings from the prose and implement accepted changes
 
 #### Scenario: Sub-agent returns no recognizable status
 - **WHEN** a sub-agent exits without a recognizable `**Status:**` line
-- **THEN** the main loop SHALL treat the phase as failed and proceed to Phase 8 (Teardown)
+- **THEN** the orchestrator SHALL treat the phase as failed and proceed to Teardown
