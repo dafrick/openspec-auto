@@ -6,7 +6,7 @@ Autonomous issue agents (Devin, OpenHands, Copilot Coding Agent) implement witho
 
 - Single `openspec-auto` skill containing the orchestrator, sub-agent prompt files, and TypeScript tooling
 - `openspec-auto` orchestrator (`SKILL.md`): manages the phase state machine and dispatches sub-agents
-- Sub-agents as prompt files under `prompts/` (no separate skills): `triage` (eligibility + selection), `explore` (autonomous requirements gathering → discovery output), `implement` (delegates to `opsx:apply`, watches CI), `review` (delegates to `superpowers:requesting-code-review`, scope filter)
+- Sub-agents as prompt files under `prompts/` (no separate skills): `triage` (eligibility + selection), `explore` (autonomous requirements gathering → discovery output), `propose` (delegates to `opsx:propose`, commits the artifacts), `implement` (delegates to `opsx:apply`, watches CI), `review` (delegates to `superpowers:requesting-code-review`, scope filter)
 - `init` TypeScript script: sets up `.openspec-auto.json` config (infers reviewer from GitHub, user accepts or overrides)
 - `write-state` / `read-state` helpers: manage `.openspec-auto/state.json` as the source of truth
 - `sync-pr-state` / `write-discovery` helpers: keep the PR description current — status block on top, latest discovery output below

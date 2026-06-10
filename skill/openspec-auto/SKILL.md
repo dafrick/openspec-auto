@@ -23,7 +23,8 @@ flowchart TD
     E -->|EXPLORED| P[Propose]
     E -->|NEEDS_INPUT| Z
 
-    P --> I[Implement]
+    P -->|PROPOSED| I[Implement]
+    P -->|BLOCKED| Z
     I -->|DONE| V[Review]
     I -->|BLOCKED / CI_BLOCKED| Z
 
@@ -48,6 +49,7 @@ Dispatch each sub-agent with the cheapest model that fits the work:
 |-----------|-------|-----|
 | triage    | haiku  | Mechanical fetch + filter, no design judgment |
 | explore   | sonnet | Codebase reading and requirement judgment |
+| propose   | sonnet | Structures the discovery into OpenSpec artifacts |
 | implement | sonnet | Integration work, coordinates the change |
 | review    | opus   | Design judgment and scope calls — highest stakes |
 
@@ -60,8 +62,10 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 | triage    | `SELECTED` | Read issue #, branch prefix, slug from prose → **Workspace** |
 | triage    | `NO_ELIGIBLE` | Teardown, wake in 2h |
 | triage    | `NEEDS_CONTEXT` | GitHub unreachable — print the error, stop, no wakeup |
-| explore   | `EXPLORED` | Write discovery to the PR description → **Propose** (pass discovery inline) |
+| explore   | `EXPLORED` | Write discovery to the PR description → dispatch **Propose** with the discovery |
 | explore   | `NEEDS_INPUT` | Write discovery to the PR description, post blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, Teardown, no wakeup |
+| propose   | `PROPOSED` | Record `changeName` from the prose → **Implement** |
+| propose   | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
 | implement | `DONE` | → **Review** |
 | implement | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
 | implement | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, Teardown, no wakeup |
@@ -86,7 +90,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → pass the discovery inline to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, and park (Teardown, no wakeup).
 
-**Propose.** Invoke `opsx:propose` to generate the proposal, specs, design, and tasks. Commit the artifacts, record the `changeName`, then spawn a brief Agent to confirm the tasks are clear and implementable; fix the artifacts if it flags gaps.
+**Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, and the discovery output. It runs `opsx:propose` grounded in the discovery, commits and pushes the artifacts itself, and returns the change name. Record `changeName` in state. `PROPOSED` → Implement; `BLOCKED` → Teardown.
 
 **Implement.** Dispatch the implement sub-agent (`prompts/implement.md`).
 
@@ -110,6 +114,7 @@ Each sub-agent is defined entirely by its prompt file — there are no separate 
 
 - `prompts/triage.md`
 - `prompts/explore.md`
+- `prompts/propose.md`
 - `prompts/implement.md`
 - `prompts/review.md`
 
@@ -150,7 +155,7 @@ The sub-agents are prompt files (see **Prompt Templates**), not skills. The skil
 | Skill | Stage | Invoked by |
 |-------|-------|-----------|
 | `superpowers:using-git-worktrees` | Workspace | orchestrator |
-| `opsx:propose` | Propose | orchestrator |
+| `opsx:propose` | Propose | propose sub-agent |
 | `opsx:apply` | Implement | implement sub-agent |
 | `superpowers:test-driven-development` | Implement | `opsx:apply` |
 | `superpowers:requesting-code-review` | Review | review sub-agent |

@@ -81,7 +81,7 @@ The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineli
 ---
 
 ### Requirement: Orchestrator delegates stages to sub-agents
-The Triage, Explore, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file.
+The Triage, Explore, Propose, Implement, and Review stages SHALL be executed as sub-agents invoked via the `Agent` tool, each defined by its prompt file.
 
 #### Scenario: Triage sub-agent — SELECTED
 - **WHEN** Triage begins and `triage` returns `**Status:** SELECTED`
@@ -100,6 +100,15 @@ The Triage, Explore, Implement, and Review stages SHALL be executed as sub-agent
 - **WHEN** `explore` returns `**Status:** NEEDS_INPUT`
 - **THEN** the orchestrator SHALL write the discovery output to the PR description
 - **THEN** it SHALL post the blocking questions as a PR comment and enter NEEDS-INPUT state
+
+#### Scenario: Propose sub-agent — PROPOSED
+- **WHEN** `propose` returns `**Status:** PROPOSED`
+- **THEN** the orchestrator SHALL record the change name from the prose
+- **THEN** it SHALL proceed to Implement
+
+#### Scenario: Propose sub-agent — BLOCKED
+- **WHEN** `propose` returns `**Status:** BLOCKED`
+- **THEN** the orchestrator SHALL set `blocked: true` and proceed to Teardown
 
 #### Scenario: Implement sub-agent — DONE
 - **WHEN** `implement` returns `**Status:** DONE`
