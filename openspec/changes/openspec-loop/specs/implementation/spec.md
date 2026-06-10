@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Implementation follows test-driven development
-The `openspec-loop-implement` sub-agent SHALL write failing tests before writing implementation code for each task.
+The `openspec-auto-implement` sub-agent SHALL write failing tests before writing implementation code for each task.
 
 #### Scenario: Test written before implementation
 - **WHEN** the implement sub-agent begins a task

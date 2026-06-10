@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Each invocation begins with state assessment
-Every invocation of `openspec-loop` SHALL begin with Phase 0 (Assess State) before any other work.
+Every invocation of `openspec-auto` SHALL begin with Phase 0 (Assess State) before any other work.
 
 #### Scenario: Phase 0 runs first on every invocation
 - **WHEN** the main loop skill is invoked
@@ -21,6 +21,11 @@ If Phase 0 finds a PR with `blocked: false` and an actionable phase, the loop SH
 #### Scenario: COMPLETE phase is skipped
 - **WHEN** Phase 0 finds a PR with `phase: "COMPLETE"`
 - **THEN** the loop SHALL skip that PR and treat it as if it were not present
+
+#### Scenario: Answered NEEDS-INPUT resumes at Explore
+- **WHEN** Phase 0 finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment
+- **THEN** the loop SHALL resume at the Explore phase, passing the PR description and comments as context
+- **THEN** it SHALL NOT re-run Triage or Workspace
 
 #### Scenario: No resumable PR found
 - **WHEN** Phase 0 finds no PRs with a resumable state
@@ -79,37 +84,37 @@ The loop SHALL stop (no wakeup scheduled) when all issues are in-flight or ineli
 Phases 1 (Triage), 3 (Explore), 5 (Implement), and 6 (Review) SHALL be executed as sub-agents invoked via the `Agent` tool, each using their dedicated skill file.
 
 #### Scenario: Triage sub-agent — SELECTED
-- **WHEN** Phase 1 begins and `openspec-loop-triage` returns `**Status:** SELECTED`
+- **WHEN** Phase 1 begins and `openspec-auto-triage` returns `**Status:** SELECTED`
 - **THEN** the main loop SHALL read the issue number, branch prefix, and slug from the prose
 - **THEN** it SHALL proceed to Phase 2 with those values
 
 #### Scenario: Triage sub-agent — NO_ELIGIBLE
-- **WHEN** `openspec-loop-triage` returns `**Status:** NO_ELIGIBLE`
+- **WHEN** `openspec-auto-triage` returns `**Status:** NO_ELIGIBLE`
 - **THEN** the main loop SHALL proceed to Phase 8 and schedule a 2-hour wakeup
 
 #### Scenario: Explore sub-agent — EXPLORED
-- **WHEN** `openspec-loop-explore` returns `**Status:** EXPLORED`
+- **WHEN** `openspec-auto-explore` returns `**Status:** EXPLORED`
 - **THEN** the main loop SHALL proceed to Phase 4 (Propose)
 
-#### Scenario: Explore sub-agent — EXPLORED_WITH_CONCERNS
-- **WHEN** `openspec-loop-explore` returns `**Status:** EXPLORED_WITH_CONCERNS`
-- **THEN** the main loop SHALL read the blocking questions from the prose
-- **THEN** it SHALL post the questions to the PR and enter NEEDS-INPUT state
+#### Scenario: Explore sub-agent — NEEDS_INPUT
+- **WHEN** `explore` returns `**Status:** NEEDS_INPUT`
+- **THEN** the main loop SHALL write the discovery output to the PR description
+- **THEN** it SHALL post the blocking questions as a PR comment and enter NEEDS-INPUT state
 
 #### Scenario: Implement sub-agent — DONE
-- **WHEN** `openspec-loop-implement` returns `**Status:** DONE`
+- **WHEN** `openspec-auto-implement` returns `**Status:** DONE`
 - **THEN** the main loop SHALL proceed to Phase 6 (Review)
 
 #### Scenario: Implement sub-agent — BLOCKED or CI_BLOCKED
-- **WHEN** `openspec-loop-implement` returns `**Status:** BLOCKED` or `**Status:** CI_BLOCKED`
+- **WHEN** `openspec-auto-implement` returns `**Status:** BLOCKED` or `**Status:** CI_BLOCKED`
 - **THEN** the main loop SHALL update agent state accordingly and proceed to Phase 8
 
 #### Scenario: Review sub-agent — APPROVED
-- **WHEN** `openspec-loop-review` returns `**Status:** APPROVED`
+- **WHEN** `openspec-auto-review` returns `**Status:** APPROVED`
 - **THEN** the main loop SHALL proceed to Phase 7 (Wrap-up)
 
 #### Scenario: Review sub-agent — CHANGES_REQUESTED
-- **WHEN** `openspec-loop-review` returns `**Status:** CHANGES_REQUESTED`
+- **WHEN** `openspec-auto-review` returns `**Status:** CHANGES_REQUESTED`
 - **THEN** the main loop SHALL read the findings from the prose and implement accepted changes
 
 #### Scenario: Sub-agent returns no recognizable status
