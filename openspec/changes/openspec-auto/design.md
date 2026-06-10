@@ -1,6 +1,6 @@
 ## Context
 
-`openspec-loop` is a new repository containing Claude Code skill files and TypeScript tooling that implements an autonomous GitHub issue lifecycle agent. It has no prior codebase; all decisions here are greenfield. The system coordinates with the OpenSpec CLI and skills ecosystem, the `gh` CLI, and the Claude Code harness (worktree tools, Skill invocation, Agent spawning).
+`openspec-auto` is a new repository containing Claude Code skill files and TypeScript tooling that implements an autonomous GitHub issue lifecycle agent. It has no prior codebase; all decisions here are greenfield. The system coordinates with the OpenSpec CLI and skills ecosystem, the `gh` CLI, and the Claude Code harness (worktree tools, Skill invocation, Agent spawning).
 
 The design is informed by two constraints: (1) the Claude Code `/loop` mechanism re-reads the invoking skill on each iteration — so the main skill must be a slash command, not a file path; (2) context compression causes instruction drift across long runs — so expensive phases must run as isolated sub-agents with their own skill files.
 
@@ -23,7 +23,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D1: Orchestrator + Sub-Agent Architecture
 
-**Decision**: The main `openspec-loop` skill manages the phase state machine and delegates each expensive phase to a dedicated sub-agent skill (`openspec-loop-triage`, `openspec-loop-explore`, `openspec-loop-implement`, `openspec-loop-review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
+**Decision**: The main `openspec-auto` skill manages the phase state machine and delegates each expensive phase to a dedicated sub-agent skill (`openspec-auto-triage`, `openspec-auto-explore`, `openspec-auto-implement`, `openspec-auto-review`). Sub-agents are invoked via the `Agent` tool, not the `Skill` tool directly.
 
 **Rationale**: Each sub-agent runs in an isolated context window — no instruction drift, no accumulated context from prior phases. The main loop receives a structured result and advances the state machine. This mirrors how real pipelines work: a coordinator delegates to workers.
 
@@ -35,15 +35,15 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D2: Sub-Agent Skills Are Proper Skill Files
 
-**Decision**: Each sub-agent is a `SKILL.md` file (e.g., `skill/openspec-loop-explore/SKILL.md`) co-located in the repository. The main loop invokes them by passing the skill name to the `Agent` tool with a prompt instructing the sub-agent to invoke its skill.
+**Decision**: Each sub-agent is a `SKILL.md` file (e.g., `skill/openspec-auto-explore/SKILL.md`) co-located in the repository. The main loop invokes them by passing the skill name to the `Agent` tool with a prompt instructing the sub-agent to invoke its skill.
 
 **Rationale**: Skill files are the documented, re-readable contract for a sub-agent's behavior. They can be independently maintained, documented with Mermaid diagrams, and later skilletized. Embedding sub-agent instructions inline in the main skill would make it unmaintainably long.
 
 ---
 
-### D3: Config File — `.openspec-loop.json`, Git-Ignored
+### D3: Config File — `.openspec-auto.json`, Git-Ignored
 
-**Decision**: A file `.openspec-loop.json` at the repo root carries per-project config (reviewer GitHub handle, etc.). It is git-ignored. A TypeScript `init` script creates it by inferring values from GitHub (`gh repo view`) and presenting them to the user for acceptance or override.
+**Decision**: A file `.openspec-auto.json` at the repo root carries per-project config (reviewer GitHub handle, etc.). It is git-ignored. A TypeScript `init` script creates it by inferring values from GitHub (`gh repo view`) and presenting them to the user for acceptance or override.
 
 **Rationale**: Config varies per project (different reviewers, future settings). Git-ignoring prevents accidental commits of reviewer handles or future sensitive values. The init script's GitHub-inference default makes setup nearly zero-friction.
 
@@ -51,19 +51,19 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **Alternative considered**: Environment variables. Rejected — verbose to set, invisible to the agent on re-invocation.
 
-**Skill behavior on missing config**: Phase 0 checks for `.openspec-loop.json`. If absent, the skill stops with: *"Config not found. Run `npx openspec-loop init` to set up."*
+**Skill behavior on missing config**: Phase 0 checks for `.openspec-auto.json`. If absent, the skill stops with: *"Config not found. Run `npx openspec-auto init` to set up."*
 
 ---
 
 ### D4: State Management — Local File as Source of Truth, PR as Checkpoint
 
-**Decision**: Agent state is stored in `.openspec-loop/state.json` at the worktree root. This file is the source of truth. A TypeScript script `scripts/sync-pr-state.ts` reads from `state.json` and updates the PR description at key phase transitions. Phase 0 reads the local file first; if absent (crash recovery path), it falls back to scanning open GitHub PRs for agent-state markers.
+**Decision**: Agent state is stored in `.openspec-auto/state.json` at the worktree root. This file is the source of truth. A TypeScript script `scripts/sync-pr-state.ts` reads from `state.json` and updates the PR description at key phase transitions. Phase 0 reads the local file first; if absent (crash recovery path), it falls back to scanning open GitHub PRs for agent-state markers.
 
 **State file fields**: `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`.
 
 **Rationale**: Decouples state reads from GitHub API calls. Phase transitions update a local file (fast, no network), then periodically sync to the PR description (network, at phase boundaries). The PR description remains the human-visible status for anyone browsing GitHub. The local file survives context compression; the PR body survives worktree removal.
 
-**Crash recovery**: If `.openspec-loop/state.json` is absent (worktree was force-removed, or new session on a different machine), Phase 0 scans open PRs for `<!-- agent-state: {...} -->` markers. Found state is written back to a new local `state.json` before resuming.
+**Crash recovery**: If `.openspec-auto/state.json` is absent (worktree was force-removed, or new session on a different machine), Phase 0 scans open PRs for `<!-- agent-state: {...} -->` markers. Found state is written back to a new local `state.json` before resuming.
 
 **Alternative considered**: PR description as sole source of truth. Rejected — every state read requires a GitHub API call; rate limiting and auth expiry become failure modes in the hot path.
 
@@ -73,7 +73,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D5: Explore Sub-Agent — Autonomous Q&A with Natural Language Output
 
-**Decision**: `openspec-loop-explore` generates questions appropriate for the issue type (bug vs feature) and answers each from codebase investigation. Output is natural language — no rigid schema or machine-parseable format. The only structural requirement is that the output MUST end with a `## Blocking Questions` section listing any questions that require human input before implementation can proceed. If there are none, the section reads "(none)".
+**Decision**: `openspec-auto-explore` generates questions appropriate for the issue type (bug vs feature) and answers each from codebase investigation. Output is natural language — no rigid schema or machine-parseable format. The only structural requirement is that the output MUST end with a `## Blocking Questions` section listing any questions that require human input before implementation can proceed. If there are none, the section reads "(none)".
 
 **The orchestrator's contract**: The explore sub-agent returns `**Status:** EXPLORED` (no blocking questions — proceed to Phase 4) or `**Status:** BLOCKED` (blocking questions present — enter NEEDS-INPUT). The status code is the machine-readable signal; the blocking questions themselves are in the prose and the orchestrator reads them to post to the PR.
 
@@ -89,10 +89,10 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 | Sub-agent | Status codes |
 |-----------|-------------|
-| `openspec-loop-triage` | `SELECTED`, `NO_ELIGIBLE` |
-| `openspec-loop-explore` | `EXPLORED`, `EXPLORED_WITH_CONCERNS` |
-| `openspec-loop-implement` | `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `CI_BLOCKED` |
-| `openspec-loop-review` | `APPROVED`, `CHANGES_REQUESTED`, `CI_BLOCKED` |
+| `openspec-auto-triage` | `SELECTED`, `NO_ELIGIBLE` |
+| `openspec-auto-explore` | `EXPLORED`, `EXPLORED_WITH_CONCERNS` |
+| `openspec-auto-implement` | `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `CI_BLOCKED` |
+| `openspec-auto-review` | `APPROVED`, `CHANGES_REQUESTED`, `CI_BLOCKED` |
 
 **Rationale**: Status codes make orchestrator branching reliable without scripted parsing of prose. The pattern is taken directly from the superpowers `subagent-driven-development` skill, which uses `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `NEEDS_CONTEXT`. Prose detail is for human observers and for the orchestrator to mine for specifics when needed (e.g., which blocking questions to post).
 
@@ -104,7 +104,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D7: Separate Skill Files Per Sub-Agent
 
-**Decision**: Each sub-agent has its own `SKILL.md` file (`skill/openspec-loop-triage/SKILL.md`, etc.). Skill files are not merged into a single parameterized skill.
+**Decision**: Each sub-agent has its own `SKILL.md` file (`skill/openspec-auto-triage/SKILL.md`, etc.). Skill files are not merged into a single parameterized skill.
 
 **Rationale**: The four sub-agents have genuinely different workflow structures. Triage and explore are stateless evaluation tasks (no commits, no loops). Implement is a stateful execution loop with TDD, per-task attempt caps, CI monitoring, and commit discipline. Review has a CI fix tail. A single skill with mode branches would be ~300 lines with completely different content per branch — harder to read and maintain than four focused files of 40-120 lines each.
 
@@ -122,7 +122,7 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 ### D9: State Machine Diagram in Main Skill — Mermaid
 
-**Decision**: The main `openspec-loop` skill includes the phase state machine as a Mermaid diagram. Sub-agent skills include flow diagrams where they aid comprehension.
+**Decision**: The main `openspec-auto` skill includes the phase state machine as a Mermaid diagram. Sub-agent skills include flow diagrams where they aid comprehension.
 
 **Rationale**: Mermaid renders in GitHub PR previews and skill documentation. A visual state machine is the single best way to communicate the resume logic to a model reading the skill file.
 
@@ -150,13 +150,13 @@ The design is informed by two constraints: (1) the Claude Code `/loop` mechanism
 
 **R3: `gh` rate limiting** → Fetching 50 issues + comments per iteration could hit GitHub API limits on busy repos. Mitigation: `--limit 50` is already a cap; the skill can be tuned to `--limit 20` for high-volume repos.
 
-**R4: Sub-agent context size** → A large codebase exploration in `openspec-loop-explore` could fill a sub-agent's context window before producing output. Mitigation: the explore skill explicitly scopes investigation to files/modules relevant to the issue, not a full repo crawl.
+**R4: Sub-agent context size** → A large codebase exploration in `openspec-auto-explore` could fill a sub-agent's context window before producing output. Mitigation: the explore skill explicitly scopes investigation to files/modules relevant to the issue, not a full repo crawl.
 
 **R5: PR body size limits** → GitHub PR descriptions have a character limit (~65,000). A description with Mermaid diagrams + long implementation notes could hit this. Mitigation: keep the agent-state block minimal; the full write-up goes in wrap-up only.
 
-**R6: state.json lost on force-remove** → If a worktree is force-removed mid-run (e.g., manual cleanup), `.openspec-loop/state.json` is lost. Phase 0's GitHub PR scan fallback recovers from this, but only if the PR was synced before the loss. Mitigation: sync to PR description at every phase transition (not just periodically).
+**R6: state.json lost on force-remove** → If a worktree is force-removed mid-run (e.g., manual cleanup), `.openspec-auto/state.json` is lost. Phase 0's GitHub PR scan fallback recovers from this, but only if the PR was synced before the loss. Mitigation: sync to PR description at every phase transition (not just periodically).
 
 ## Open Questions
 
-- Should `openspec-loop-implement` and `openspec-loop-review` share a single "CI fix" sub-agent, or keep CI fixing inline in each? (Current: inline — simpler, revisit if duplication is painful.)
+- Should `openspec-auto-implement` and `openspec-auto-review` share a single "CI fix" sub-agent, or keep CI fixing inline in each? (Current: inline — simpler, revisit if duplication is painful.)
 - Should the init script write the `.gitignore` entry automatically, or instruct the user to add it? (Current lean: write it automatically, show what was added.)

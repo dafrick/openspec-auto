@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Review sub-agent has no prior context
-The `openspec-loop-review` sub-agent SHALL be spawned with only the PR number — no conversation history, no implementation context from the main loop.
+The `openspec-auto-review` sub-agent SHALL be spawned with only the PR number — no conversation history, no implementation context from the main loop.
 
 #### Scenario: Review sub-agent spawned cleanly
 - **WHEN** Phase 6 begins

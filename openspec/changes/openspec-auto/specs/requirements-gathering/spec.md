@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Explore sub-agent conducts autonomous Q&A
-The `openspec-loop-explore` sub-agent SHALL generate a set of relevant questions for the given issue and answer each question from codebase investigation — without waiting for human input.
+The `openspec-auto-explore` sub-agent SHALL generate a set of relevant questions for the given issue and answer each question from codebase investigation — without waiting for human input.
 
 #### Scenario: Bug issue exploration
 - **WHEN** the explore sub-agent receives a bug issue
