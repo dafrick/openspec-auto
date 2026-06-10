@@ -8,9 +8,9 @@ The `implement` sub-agent SHALL run `opsx:apply` on the change and execute its `
 - **THEN** it SHALL invoke `opsx:apply` for the change and drive the tasks with `superpowers:subagent-driven-development`
 - **THEN** each task SHALL run in its own sub-agent following test-driven development
 
-#### Scenario: Commit and push each increment
-- **WHEN** a task or fix is complete
-- **THEN** the implement sub-agent SHALL commit it (conventional commits) and push, so CI runs and progress survives a crash
+#### Scenario: Commit and push as it goes
+- **WHEN** implementation is underway
+- **THEN** the implement sub-agent SHALL commit and push at least once per top-level task (more often when it helps), so CI runs and a crash loses at most the current task
 
 ---
 

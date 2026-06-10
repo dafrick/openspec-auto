@@ -13,9 +13,9 @@ The change spec under `openspec/changes/{{CHANGE_NAME}}/` is the contract; work 
 
 ## 1 — Run the task loop
 
-Run the `opsx:apply` skill on this change (`{{CHANGE_NAME}}`). Execute its `tasks.md` with `superpowers:subagent-driven-development` — a fresh sub-agent per task — each following `superpowers:test-driven-development` (write the failing test first, then the implementation). **You are the one openspec-auto sub-agent allowed to spawn its own sub-agents; that nesting is intended here.** Let it run to completion — on a rerun, work the change request instead of the full list.
+Run the `opsx:apply` skill on this change (`{{CHANGE_NAME}}`), using `superpowers:subagent-driven-development` — a fresh sub-agent per task — with `superpowers:test-driven-development` (write the failing test first, then the implementation). **You are the one openspec-auto sub-agent allowed to spawn its own sub-agents; that nesting is intended here.** Let it run to completion — on a rerun, work the change request instead of the full list.
 
-**Commit and push every major increment** (each completed task or fix) with a conventional-commit message, so CI runs on it and progress survives a crash.
+**Commit and push as you go — at least once per top-level task** (the numbered groups, `1.` / `2.` / …), and more often when it helps. Use conventional-commit messages. This keeps CI running on your progress and means a crash never loses more than the current task.
 
 **Don't get stuck.** If a single task can't reach passing local tests after 3 attempts, stop and return `**Status:** BLOCKED` with the task and what you tried — do not keep retrying. With a finite task list and a per-task cap, the loop always terminates.
 
