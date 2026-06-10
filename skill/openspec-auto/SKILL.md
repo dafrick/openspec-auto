@@ -175,7 +175,8 @@ The sub-agents are prompt files (see **Prompt Templates**), not skills. The skil
 | `superpowers:using-git-worktrees` | Workspace | orchestrator |
 | `opsx:propose` | Propose | propose sub-agent |
 | `opsx:apply` | Implement | implement sub-agent |
-| `superpowers:test-driven-development` | Implement | `opsx:apply` |
+| `superpowers:subagent-driven-development` | Implement | implement sub-agent (a sub-agent per task — the one sanctioned nesting) |
+| `superpowers:test-driven-development` | Implement | per-task sub-agent |
 | `superpowers:requesting-code-review` | Code review | code-review sub-agent |
 | `superpowers:finishing-a-development-branch` | Wrap up | orchestrator |
 | `opsx:archive` | Wrap up | orchestrator |

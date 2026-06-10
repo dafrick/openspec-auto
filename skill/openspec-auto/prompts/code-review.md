@@ -12,6 +12,8 @@ The **change spec is the contract** — read `openspec/changes/{{CHANGE_NAME}}/`
 
 Run the `superpowers:requesting-code-review` skill — it handles diff reading, finding identification, and severity. Let it complete.
 
+Also confirm **test-driven development was followed**: the changed behavior is covered by tests that genuinely assert it. Missing tests, or tests that don't actually exercise the behavior, are a blocking in-scope finding.
+
 ## 3 — Categorize each finding
 
 Tag every finding two ways:

@@ -15,6 +15,15 @@ The `code-review` sub-agent SHALL read the current PR diff and the change spec (
 
 ---
 
+### Requirement: Code review verifies test-driven development was followed
+The code-review sub-agent SHALL confirm the changed behavior is covered by tests that genuinely assert it. Missing tests, or tests that do not exercise the behavior, are a blocking in-scope finding.
+
+#### Scenario: Untested in-scope behavior is blocking
+- **WHEN** the diff adds or changes behavior the spec requires, with no test that asserts it
+- **THEN** the code-review sub-agent SHALL tag a blocking in-scope finding
+
+---
+
 ### Requirement: Findings are tagged by scope and severity
 The code-review sub-agent SHALL tag each finding by scope (in-scope = within the change's spec/tasks, out-of-scope = beyond what the spec covers, or unclear = design-level) and by severity (blocking or minor).
 

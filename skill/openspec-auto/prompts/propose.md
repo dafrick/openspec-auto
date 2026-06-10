@@ -25,9 +25,9 @@ Check `openspec/specs/` for existing capability specs covering this area. If spe
 
 **Rerun** (`{{CHANGE_REQUEST}}` present): the change already exists — do **not** invoke `opsx:propose`. Edit the artifacts under `openspec/changes/{{CHANGE_NAME}}/` directly to resolve the blocking findings.
 
-## 3 — Confirm the tasks are implementable
+## 3 — Confirm the tasks are implementable, test-first
 
-Re-read `tasks.md`: each task should be concrete, ordered, and verifiable. Tighten anything vague.
+Re-read `tasks.md`: each task should be concrete, ordered, and verifiable. Plan the tasks for **test-driven development** — each behavioral task should call for its test first, then the implementation — so Implement can follow TDD straight off the list. Tighten anything vague.
 
 ## 4 — Commit and push
 

@@ -1,5 +1,19 @@
 ## ADDED Requirements
 
+### Requirement: Implementation runs opsx:apply via subagent-driven-development
+The `implement` sub-agent SHALL run `opsx:apply` on the change and execute its `tasks.md` with `superpowers:subagent-driven-development` — a fresh sub-agent per task. This is the one sanctioned case where an openspec-auto sub-agent spawns its own sub-agents.
+
+#### Scenario: Tasks executed by per-task sub-agents
+- **WHEN** the implement sub-agent runs the task loop
+- **THEN** it SHALL invoke `opsx:apply` for the change and drive the tasks with `superpowers:subagent-driven-development`
+- **THEN** each task SHALL run in its own sub-agent following test-driven development
+
+#### Scenario: Commit and push each increment
+- **WHEN** a task or fix is complete
+- **THEN** the implement sub-agent SHALL commit it (conventional commits) and push, so CI runs and progress survives a crash
+
+---
+
 ### Requirement: Implementation follows test-driven development
 The `implement` sub-agent SHALL write failing tests before writing implementation code for each task.
 
@@ -11,6 +25,10 @@ The `implement` sub-agent SHALL write failing tests before writing implementatio
 #### Scenario: Task marked complete only when tests pass
 - **WHEN** the implement sub-agent attempts to check off a task
 - **THEN** it SHALL run the test suite and confirm the relevant tests pass before marking the task done
+
+#### Scenario: Tasks are planned test-first at propose time
+- **WHEN** the change is proposed
+- **THEN** `tasks.md` SHALL order each behavioral task as test-first (the test, then the implementation) so the implementer can follow TDD directly off the list
 
 ---
 
