@@ -1,5 +1,5 @@
-import { execSync } from "node:child_process";
 import { readState } from "./read-state.js";
+import { readPrBody, editPrBody } from "./pr-body.js";
 import type { AgentState } from "./types.js";
 
 export function renderPrBlock(state: AgentState): string {
@@ -24,26 +24,25 @@ export function renderPrBlock(state: AgentState): string {
   return table;
 }
 
+export const AGENT_STATUS_PATTERN = /## Agent Status[\s\S]*?<!-- agent-state:.*?-->/;
+
+/**
+ * Update only the `## Agent Status` block in the PR body, in place. The status
+ * block lives at the top of the description; the discovery output (if any)
+ * follows below it and is left untouched.
+ */
 export function syncPrState(prNumber: number, cwd = process.cwd()): void {
-  const state = readState(cwd);
-  const block = renderPrBlock(state);
+  const block = renderPrBlock(readState(cwd));
+  const currentBody = readPrBody(prNumber, cwd);
 
-  const currentBody = execSync(`gh pr view ${prNumber} --json body -q .body`, {
-    encoding: "utf8",
-    cwd,
-  }).trim();
-
-  const agentStatusPattern = /## Agent Status[\s\S]*?<!-- agent-state:.*?-->/;
   let newBody: string;
-  if (agentStatusPattern.test(currentBody)) {
-    newBody = currentBody.replace(agentStatusPattern, block);
+  if (AGENT_STATUS_PATTERN.test(currentBody)) {
+    newBody = currentBody.replace(AGENT_STATUS_PATTERN, block);
   } else {
-    newBody = currentBody ? `${currentBody}\n\n${block}` : block;
+    newBody = currentBody ? `${block}\n\n${currentBody}` : block;
   }
 
-  execSync(`gh pr edit ${prNumber} --body "${newBody.replace(/"/g, '\\"')}"`, {
-    cwd,
-  });
+  editPrBody(prNumber, newBody, cwd);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

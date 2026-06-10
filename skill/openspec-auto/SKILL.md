@@ -4,7 +4,7 @@ Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper tr
 
 **Why an orchestrator + sub-agents:** Each expensive stage runs as a fresh sub-agent with its own context window. You — the orchestrator — hold only the state machine and the result each sub-agent returns. Sub-agents never inherit your history; you build their context from a prompt template. This prevents the instruction drift that breaks long single-context runs.
 
-**Core principle:** One issue per invocation. `state.json` is the source of truth; the PR description is the human-visible checkpoint. Each stage writes its phase, then branches on the sub-agent's `**Status:**` line.
+**Core principle:** One issue per invocation. `state.json` is the source of truth. The PR description is the human-visible checkpoint — the agent-status block on top, the latest discovery output below it — overwritten as the run progresses, so it always reflects where things stand. The PR comments hold the dialogue: blocking questions the agent raises and the human's answers. Each stage writes its phase, then branches on the sub-agent's `**Status:**` line.
 
 **Continuous execution:** Don't check in with your human between stages. Run the whole machine. Stop only on the terminal conditions in **Stopping Conditions** — otherwise keep going.
 
@@ -13,14 +13,15 @@ Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper tr
 ```mermaid
 flowchart TD
     A[Assess] -->|resumable state| RJ((resume at saved stage))
+    A -->|answered NEEDS-INPUT PR| E[Explore]
     A -->|nothing in flight| T[Triage]
 
     T -->|SELECTED| W[Workspace]
     T -->|NO_ELIGIBLE / NEEDS_CONTEXT| Z[Teardown]
 
-    W --> E[Explore]
+    W --> E
     E -->|EXPLORED| P[Propose]
-    E -->|EXPLORED_WITH_CONCERNS| Z
+    E -->|NEEDS_INPUT| Z
 
     P --> I[Implement]
     I -->|DONE| V[Review]
@@ -59,8 +60,8 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 | triage    | `SELECTED` | Read issue #, branch prefix, slug from prose → **Workspace** |
 | triage    | `NO_ELIGIBLE` | Teardown, wake in 2h |
 | triage    | `NEEDS_CONTEXT` | GitHub unreachable — print the error, stop, no wakeup |
-| explore   | `EXPLORED` | → **Propose** |
-| explore   | `EXPLORED_WITH_CONCERNS` | Post the blocking questions to the PR, write `NEEDS-INPUT` + `blocked:true`, Teardown, no wakeup |
+| explore   | `EXPLORED` | Write discovery to the PR description → **Propose** (pass discovery inline) |
+| explore   | `NEEDS_INPUT` | Write discovery to the PR description, post blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, Teardown, no wakeup |
 | implement | `DONE` | → **Review** |
 | implement | `BLOCKED` | Write `blocked:true`, Teardown, no wakeup |
 | implement | `CI_BLOCKED` | Write `CI-BLOCKED` + `blocked:true`, Teardown, no wakeup |
@@ -72,13 +73,18 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 
 Each stage writes its phase to `state.json` and syncs it to the PR, then does its work. Sub-agent stages are dispatched with the `Agent` tool, the matching prompt template, and the model from **Model Selection**.
 
-**Assess.** Read config; if `.openspec-auto.json` is missing, stop and tell the user to run init. Read `state.json`: if it exists with `blocked:false` and a phase other than `COMPLETE`, resume that stage. If `blocked:true` or `COMPLETE`, discard it and triage fresh. If there's no local state, scan open PRs for an `<!-- agent-state: … -->` marker (crash recovery), reconstruct the file, and resume; otherwise triage.
+**Assess.** Read config; if `.openspec-auto.json` is missing, stop and tell the user to run init. Then decide what to work on:
+- **Local `state.json`, `blocked:false`, phase ≠ `COMPLETE`** → resume that stage.
+- **Phase `COMPLETE` or `CI-BLOCKED`** → a human owns it; ignore and look for other work.
+- **Phase `NEEDS-INPUT`** → resume at **Explore** *only if* the PR has a human comment newer than the agent's blocking-questions comment (the questions were answered); otherwise leave it parked.
+- **No local state** → scan open PRs for an `<!-- agent-state: … -->` marker and apply the same per-phase rules (crash recovery): reconstruct `state.json` and resume, or, for an answered `NEEDS-INPUT` PR, resume at Explore.
+- **Nothing to resume** → Triage.
 
 **Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It picks one eligible issue.
 
 **Workspace.** Run `setup-workspace.ts` — it checks out main, creates the `<prefix>/<issue>-<slug>` branch, anchors an empty commit, opens the draft PR, and writes the initial `state.json`. Then enter an isolated workspace with `superpowers:using-git-worktrees`.
 
-**Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline.
+**Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → pass the discovery inline to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, and park (Teardown, no wakeup).
 
 **Propose.** Invoke `opsx:propose` to generate the proposal, specs, design, and tasks. Commit the artifacts, record the `changeName`, then spawn a brief Agent to confirm the tasks are clear and implementable; fix the artifacts if it flags gaps.
 
@@ -122,14 +128,15 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 |--------|---------|
 | `read-state.ts` | Read and validate `state.json` |
 | `write-state.ts '<json>'` | Write `state.json` (rejects invalid phases) |
-| `sync-pr-state.ts <PR>` | Render the `## Agent Status` table + marker into the PR body |
+| `sync-pr-state.ts <PR>` | Update the `## Agent Status` block (top of the PR body) in place |
+| `write-discovery.ts <PR> <file>` | Overwrite the PR body: status block on top, discovery output below |
 | `setup-workspace.ts <issue> <branch> <title>` | Branch + empty commit + draft PR + initial state |
 
 **State update protocol:** on every stage transition, `write-state.ts` first, then `sync-pr-state.ts <PR>`. First-time setup: `cd $OSL && npm install`.
 
 ## Red Flags
 
-- **Never resume a `blocked:true` or `COMPLETE` issue** — triage a fresh one.
+- **Never resume a `CI-BLOCKED` or `COMPLETE` issue** — a human owns those; triage a fresh one. A `NEEDS-INPUT` PR *is* resumable, but only once the human has answered its blocking questions.
 - **Never skip Teardown** — it runs on every exit, including terminal stops.
 - **Never start Review before Implement returns `DONE`**, or Wrap up before Review returns `APPROVED`.
 - **Never schedule a wakeup on a terminal stop** — NEEDS-INPUT and CI-BLOCKED wait for a human.

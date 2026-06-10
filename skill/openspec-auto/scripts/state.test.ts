@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { writeState } from "./write-state.js";
 import { readState } from "./read-state.js";
 import { renderPrBlock } from "./sync-pr-state.js";
+import { composePrBody } from "./write-discovery.js";
 import type { AgentState } from "./types.js";
 
 const VALID_STATE: AgentState = {
@@ -108,5 +109,26 @@ describe("sync-pr-state / renderPrBlock", () => {
 
   test("rendered output is idempotent (same state → same block)", () => {
     assert.equal(renderPrBlock(VALID_STATE), renderPrBlock(VALID_STATE));
+  });
+});
+
+describe("write-discovery / composePrBody", () => {
+  const block = renderPrBlock(VALID_STATE);
+  const discovery = "## Discovery\n\nThe bug is in the parser.";
+
+  test("status block comes first, discovery below", () => {
+    const body = composePrBody(block, discovery);
+    assert.ok(body.startsWith("## Agent Status"));
+    assert.ok(body.indexOf("## Agent Status") < body.indexOf("## Discovery"));
+  });
+
+  test("agent-state marker is preserved above the discovery", () => {
+    const body = composePrBody(block, discovery);
+    assert.ok(body.indexOf("<!-- agent-state:") < body.indexOf("## Discovery"));
+  });
+
+  test("blank line separates the two regions", () => {
+    const body = composePrBody(block, discovery);
+    assert.match(body, /-->\n\n## Discovery/);
   });
 });
