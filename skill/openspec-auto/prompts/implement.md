@@ -7,7 +7,7 @@ Change: {{CHANGE_NAME}}
 
 {{CHANGE_REQUEST}}
 
-`{{CHANGE_REQUEST}}` is empty on the first run. On a rerun it holds the blocking findings from code-review; address those — fix the code (and update `tasks.md` or the change specs if a fix warrants it) rather than re-running the whole task list. The orchestrator reset `ciFixes` to 0 for this increment.
+`{{CHANGE_REQUEST}}` is empty on the first run. On a rerun it holds the changes to make — either code-review's blocking findings, or a human's requested-changes review on an `IN-REVIEW` PR. Address those — fix the code (and update `tasks.md` or the change specs if a fix warrants it) rather than re-running the whole task list. The orchestrator reset `ciFixes` to 0 for this increment.
 
 The change spec under `openspec/changes/{{CHANGE_NAME}}/` is the contract; work from its `tasks.md`.
 

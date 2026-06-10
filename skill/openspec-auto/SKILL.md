@@ -39,7 +39,7 @@ flowchart TD
     S -->|idle / auth expired| L[Wake 6h]
 ```
 
-Stage names match the `phase` they write to `state.json`: **Workspace → `WORKSPACE`**, **Explore → `EXPLORE`**, **Propose → `PROPOSE`**, **Implement → `IMPLEMENT`**, **Code review → `REVIEW`**, **Wrap up → `COMPLETE`**. The failure exits write `NEEDS-INPUT` or `CI-BLOCKED`. Bring-up, Triage, and Teardown run before or after the PR exists and write no phase.
+Stage names match the `phase` they write to `state.json`: **Workspace → `WORKSPACE`**, **Explore → `EXPLORE`**, **Propose → `PROPOSE`**, **Implement → `IMPLEMENT`**, **Code review → `REVIEW`**, **Wrap up → `IN-REVIEW`** (handed to the human). The failure exits write `NEEDS-INPUT` or `CI-BLOCKED`. Bring-up, Triage, and Teardown run before or after the PR exists and write no phase.
 
 ## Model Selection
 
@@ -95,7 +95,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Workspace.** Ensure an isolated worktree exists for this issue's branch.
 - **Fresh** (from `SELECTED`): assemble the branch as `<prefix>/<issue>-<slug>` and run `setup-workspace.ts <issue> <branch> "<prefix>: <issue title>"` — it checks out the repo's default branch (from `.openspec-auto.json`), creates the branch, anchors an empty commit, opens the draft PR (titled per Conventional Commits), and writes the initial `state.json`. Enter the worktree with `superpowers:using-git-worktrees`, then fetch the issue body and comments (`gh issue view <N> --json body,comments`) to hand to Explore.
-- **Resume** (from `RESUME`): the branch and PR already exist — do **not** recreate them. Reconstruct `state.json` from the PR's agent-state marker, fetch and check out the existing branch, enter its worktree with `superpowers:using-git-worktrees`, then continue at the recorded phase (Explore for `WORKSPACE`/`EXPLORE`/answered `NEEDS-INPUT`; Propose/Implement/Code review for those phases).
+- **Resume** (from `RESUME`): the branch and PR already exist — do **not** recreate them. Reconstruct `state.json` from the PR's agent-state marker, fetch and check out the existing branch, enter its worktree with `superpowers:using-git-worktrees`, then continue at the recorded phase: Explore for `WORKSPACE`/`EXPLORE`/answered `NEEDS-INPUT`; Propose/Implement/Code review for those phases; **Implement for an `IN-REVIEW` PR with requested changes** (pass the change requests as `{{CHANGE_REQUEST}}`).
 
 **Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → **set the `changeName` to the branch slug** (the kebab slug chosen at Triage, so the change and branch stay paired), record it in `state.json`, and proceed to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS-INPUT` + `blocked:true`, and park (Teardown, no wakeup). The `changeName` is passed to every stage from here on so they all know where to look (`openspec/changes/<changeName>/`).
 
@@ -105,7 +105,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 
 **Code review.** Mark the PR ready (`gh pr ready`), then dispatch the code-review sub-agent (`prompts/code-review.md`) with the PR and `changeName` (the spec is its basis — no issue needed). It judges the current diff and returns findings — it changes nothing. Handle its verdict per **Review cycles** (`APPROVED`/minor → Wrap up; blocking → rerun Implement).
 
-**Wrap up.** Invoke `superpowers:finishing-a-development-branch`, then `opsx:archive`, then assign the reviewer (`gh pr edit --add-reviewer <reviewer>`).
+**Wrap up.** Set phase `IN-REVIEW` — the agent's work is done and the PR now awaits human review (it is *not* merged; the loop never merges). Invoke `superpowers:finishing-a-development-branch`, then `opsx:archive`, then assign the reviewer (`gh pr edit --add-reviewer <reviewer>`). The PR is picked back up only if the human's review requests changes — Triage detects that and resumes at Implement.
 
 **Teardown — always runs.** Return to the primary checkout and remove the worktree (`git worktree remove --force <path>` — this clears the run's scratch `.openspec-auto/` with it; the PR marker is the durable record). Check out the default branch, pull, then schedule per **Stopping Conditions**.
 
@@ -129,7 +129,7 @@ Each sub-agent is defined entirely by its prompt file — there are no separate 
 
 ## State & Scripts
 
-`state.json` lives in `.openspec-auto/` and is a **within-run cache** — created at Workspace (fresh) or reconstructed from the PR's agent-state marker (resume), and deleted at Teardown. It carries `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`. Valid phases: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `COMPLETE`, `CI-BLOCKED`. The durable, cross-run record is the PR's `<!-- agent-state: … -->` marker.
+`state.json` lives in `.openspec-auto/` and is a **within-run cache** — created at Workspace (fresh) or reconstructed from the PR's agent-state marker (resume), and deleted at Teardown. It carries `phase`, `issue`, `prNumber`, `branch`, `changeName`, `ciFixes`, `blocked`. Valid phases: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `IN-REVIEW`, `CI-BLOCKED`. The durable, cross-run record is the PR's `<!-- agent-state: … -->` marker.
 
 Scripts live in this skill's directory. Set the base once, then call:
 
@@ -152,7 +152,7 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 ## Red Flags
 
 - **Never read local state across runs** — Bring-up reads only config; Triage discovers in-flight work from open PR markers; `state.json` is recreated each run and deleted at Teardown.
-- **Never resume a `CI-BLOCKED` or `COMPLETE` issue** — a human owns those; triage a fresh one. A `NEEDS-INPUT` PR *is* resumable, but only once the human has answered its blocking questions.
+- **Never resume a `CI-BLOCKED` issue** — a human owns it. A `NEEDS-INPUT` PR is resumable once the human answers; an `IN-REVIEW` PR is resumable only when the human's review requests changes (otherwise it's awaiting merge — leave it).
 - **Never recreate the branch/PR on resume** — the worktree was torn down, but the branch and PR persist; re-establish them (Workspace resume mode), don't run `setup-workspace.ts` again.
 - **Never skip Teardown** — it runs on every exit, including terminal stops.
 - **Never start Code review before Implement returns `DONE`**, or Wrap up before a review's blocking findings are cleared (or judged minor).

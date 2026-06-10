@@ -86,17 +86,25 @@ The `phase` field in state.json and the PR description SHALL only contain one of
 
 #### Scenario: Valid phase values
 - **WHEN** `phase` is read from state.json
-- **THEN** it SHALL be one of: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `COMPLETE`, `CI-BLOCKED`
+- **THEN** it SHALL be one of: `WORKSPACE`, `EXPLORE`, `NEEDS-INPUT`, `PROPOSE`, `IMPLEMENT`, `REVIEW`, `IN-REVIEW`, `CI-BLOCKED`
 
 ---
 
-### Requirement: Blocked flag gates resumption, with a NEEDS-INPUT exception
-The `blocked` field gates whether the orchestrator resumes an existing issue. A `CI-BLOCKED` issue is human-owned and never auto-resumes. A `NEEDS-INPUT` issue is the one exception: it resumes once the human has answered its blocking questions.
+### Requirement: Resumption depends on phase and human input
+Whether the orchestrator resumes an existing issue depends on the PR's phase. A `CI-BLOCKED` issue is human-owned and never auto-resumes. A `NEEDS-INPUT` issue resumes once the human has answered its blocking questions. An `IN-REVIEW` issue resumes only when the human's review requests changes; otherwise it awaits the human's merge.
 
 #### Scenario: CI-BLOCKED is not resumed
 - **WHEN** Triage sees a PR marker with `blocked: true` and phase `CI-BLOCKED`
 - **THEN** it SHALL NOT mark the PR resumable
 - **THEN** it SHALL look for other work
+
+#### Scenario: IN-REVIEW with requested changes is resumed
+- **WHEN** Triage finds an `IN-REVIEW` PR with `reviewDecision: CHANGES_REQUESTED`
+- **THEN** it SHALL return `RESUME`, and the orchestrator SHALL continue at Implement with the requested changes
+
+#### Scenario: IN-REVIEW awaiting merge stays parked
+- **WHEN** Triage finds an `IN-REVIEW` PR with no requested changes
+- **THEN** it SHALL leave it for the human to merge and look for other work
 
 #### Scenario: Answered NEEDS-INPUT is resumed
 - **WHEN** Triage finds a `NEEDS-INPUT` PR with a human comment newer than the agent's blocking-questions comment

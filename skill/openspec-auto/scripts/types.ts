@@ -5,7 +5,7 @@ export type Phase =
   | "PROPOSE"
   | "IMPLEMENT"
   | "REVIEW"
-  | "COMPLETE"
+  | "IN-REVIEW"
   | "CI-BLOCKED";
 
 export const VALID_PHASES: Phase[] = [
@@ -15,7 +15,7 @@ export const VALID_PHASES: Phase[] = [
   "PROPOSE",
   "IMPLEMENT",
   "REVIEW",
-  "COMPLETE",
+  "IN-REVIEW",
   "CI-BLOCKED",
 ];
 

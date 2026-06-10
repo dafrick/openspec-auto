@@ -14,11 +14,20 @@ export interface SurveyComment {
   body?: string;
 }
 
+export interface ChangeRequest {
+  author: string;
+  body: string;
+}
+
 export interface AgentPr {
   number: number;
   phase: Phase;
   blocked: boolean;
   comments: SurveyComment[];
+  /** GitHub's overall review decision: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null */
+  reviewDecision: string | null;
+  /** The bodies of any CHANGES_REQUESTED reviews — the human's requested changes. */
+  changeRequests: ChangeRequest[];
 }
 
 export interface SurveyRow {
@@ -52,10 +61,17 @@ interface GqlComment {
   createdAt: string;
   body?: string;
 }
+interface GqlReview {
+  state: string;
+  body: string;
+  author: { login: string } | null;
+}
 interface GqlPr {
   number: number;
   body: string;
   comments: { nodes: GqlComment[] };
+  reviewDecision: string | null;
+  latestReviews: { nodes: GqlReview[] };
 }
 interface GqlIssue {
   number: number;
@@ -86,6 +102,10 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
           phase: state.phase,
           blocked: state.blocked,
           comments: mapComments(pr.comments.nodes),
+          reviewDecision: pr.reviewDecision ?? null,
+          changeRequests: (pr.latestReviews?.nodes ?? [])
+            .filter((r) => r.state === "CHANGES_REQUESTED")
+            .map((r) => ({ author: r.author?.login ?? "", body: r.body })),
         };
         break;
       }
@@ -102,7 +122,7 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
   });
 }
 
-const QUERY = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){issues(states:OPEN,first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number title body updatedAt labels(first:20){nodes{name}} comments(first:50){nodes{author{login} body createdAt}} closedByPullRequestsReferences(first:10,includeClosedPrs:false){nodes{number body comments(first:50){nodes{author{login} createdAt}}}}}}}}`;
+const QUERY = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){issues(states:OPEN,first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number title body updatedAt labels(first:20){nodes{name}} comments(first:50){nodes{author{login} body createdAt}} closedByPullRequestsReferences(first:10,includeClosedPrs:false){nodes{number body reviewDecision comments(first:50){nodes{author{login} createdAt}} latestReviews(first:10){nodes{state body author{login}}}}}}}}}`;
 
 export function survey(cwd = process.cwd()): SurveyRow[] {
   const nameWithOwner = execSync(

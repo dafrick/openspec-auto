@@ -11,7 +11,7 @@ The triage sub-agent SHALL obtain its table from the `survey.ts` script, which r
 ---
 
 ### Requirement: Resumable work comes first, most advanced wins
-The triage sub-agent SHALL prefer resuming in-flight work over starting a new issue. A PR is resumable when its agent-state shows an answered `NEEDS-INPUT` (a human comment newer than the blocking-questions comment) or a non-terminal phase with `blocked: false`; `COMPLETE` and `CI-BLOCKED` are not resumable.
+The triage sub-agent SHALL prefer resuming in-flight work over starting a new issue. A PR is resumable when its agent-state shows an answered `NEEDS-INPUT` (a human comment newer than the blocking-questions comment), an `IN-REVIEW` PR whose `reviewDecision` is `CHANGES_REQUESTED` (a human review asked for changes), or a non-terminal phase with `blocked: false`. `CI-BLOCKED` is not resumable, and `IN-REVIEW` with no requested changes is left for the human to merge.
 
 #### Scenario: Resumable row takes precedence
 - **WHEN** any table row has a resumable agent PR
@@ -19,7 +19,12 @@ The triage sub-agent SHALL prefer resuming in-flight work over starting a new is
 
 #### Scenario: Most advanced is resumed
 - **WHEN** more than one row is resumable
-- **THEN** the triage sub-agent SHALL resume the one furthest along (`REVIEW` > `IMPLEMENT` > `PROPOSE` > `EXPLORE` > `WORKSPACE`)
+- **THEN** the triage sub-agent SHALL resume the one furthest along (`IN-REVIEW` > `REVIEW` > `IMPLEMENT` > `PROPOSE` > `EXPLORE` > `WORKSPACE`)
+
+#### Scenario: IN-REVIEW with requested changes resumes at Implement
+- **WHEN** an `IN-REVIEW` PR has `reviewDecision: CHANGES_REQUESTED`
+- **THEN** the triage sub-agent SHALL return `RESUME` and quote the requested changes
+- **THEN** the orchestrator SHALL resume at Implement with those changes as the change request
 
 #### Scenario: No resumable row — consider new issues
 - **WHEN** no row is resumable
@@ -52,7 +57,7 @@ The triage sub-agent SHALL evaluate every open issue against three criteria. An 
 Dedup is a property of the table, not a separate step: an issue joined to an agent PR is resumed or skipped, never selected as new work. This prevents opening a second PR for an issue already in flight.
 
 #### Scenario: Issue with an in-flight PR is not re-selected
-- **WHEN** an issue's row has an associated agent PR that is not resumable (e.g. `COMPLETE` or `CI-BLOCKED`)
+- **WHEN** an issue's row has an associated agent PR that is not resumable (e.g. `CI-BLOCKED`, or `IN-REVIEW` awaiting merge)
 - **THEN** the triage sub-agent SHALL NOT select that issue as new work
 
 #### Scenario: Association is by PR body or branch

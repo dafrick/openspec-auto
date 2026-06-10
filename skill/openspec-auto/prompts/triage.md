@@ -15,9 +15,14 @@ Each row is `{ issue, title, body, updatedAt, labels, comments, agentPr }`, wher
 
 ## 2 — Resume first
 
-A row's PR is **resumable** when its phase is an answered `NEEDS-INPUT` (a human comment newer than the agent's blocking-questions comment) or a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`IMPLEMENT`/`REVIEW`) with `blocked: false`. `COMPLETE` and `CI-BLOCKED` are not resumable (human-owned).
+A row's agent PR is **resumable** when:
+- phase `NEEDS-INPUT` and a human answered — a comment newer than the agent's blocking-questions comment → resume at **Explore**;
+- phase `IN-REVIEW` and `reviewDecision` is `CHANGES_REQUESTED` — a human review asked for changes → resume at **Implement** with those requested changes;
+- a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`IMPLEMENT`/`REVIEW`) with `blocked: false` — a stalled run → resume there.
 
-If any row is resumable, return `**Status:** RESUME` for the **most advanced** one (furthest along: `REVIEW` > `IMPLEMENT` > `PROPOSE` > `EXPLORE` > `WORKSPACE`; an answered `NEEDS-INPUT` resumes at Explore). Do not look at new issues.
+Not resumable: `CI-BLOCKED` (a human owns it), and `IN-REVIEW` with no changes requested (awaiting the human's merge).
+
+If any row is resumable, return `**Status:** RESUME` for the **most advanced** one. Do not look at new issues.
 
 ## 3 — Otherwise, select a new issue
 
@@ -34,7 +39,8 @@ From the eligible rows, pick the best: prefer more-recently-updated, higher-impa
 **Status:** RESUME
 PR: #<PR>
 Phase: <recorded phase>
-<why this PR is resumable and most advanced>
+<why this PR is resumable; for an IN-REVIEW PR, quote the requested changes
+so the orchestrator can hand them to Implement>
 ```
 
 ```

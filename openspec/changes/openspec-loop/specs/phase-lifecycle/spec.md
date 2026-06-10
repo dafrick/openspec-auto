@@ -27,6 +27,20 @@ When Triage returns `RESUME`, the orchestrator SHALL re-establish the workspace 
 - **WHEN** Triage returns `RESUME` for an answered `NEEDS-INPUT` PR
 - **THEN** the loop SHALL re-establish the workspace, then continue at Explore, passing the PR description and comments as context
 
+#### Scenario: IN-REVIEW with requested changes resumes at Implement
+- **WHEN** Triage returns `RESUME` for an `IN-REVIEW` PR whose review requested changes
+- **THEN** the loop SHALL re-establish the workspace, then continue at Implement, passing the requested changes as the change request
+
+---
+
+### Requirement: Wrap up hands the PR to human review
+Wrap up SHALL finish the branch, archive the change, assign the reviewer, and set the phase to `IN-REVIEW`. The loop SHALL NOT merge the PR.
+
+#### Scenario: Successful iteration ends IN-REVIEW
+- **WHEN** code-review returns `APPROVED`
+- **THEN** Wrap up SHALL run `superpowers:finishing-a-development-branch` and `opsx:archive`, assign the reviewer, and set phase `IN-REVIEW`
+- **THEN** the PR awaits human review and the loop SHALL NOT merge it
+
 ---
 
 ### Requirement: Teardown always runs

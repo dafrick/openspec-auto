@@ -62,6 +62,33 @@ describe("buildTable", () => {
     assert.equal(rows[0].agentPr?.comments[0].author, "alice");
   });
 
+  test("surfaces reviewDecision and CHANGES_REQUESTED review bodies", () => {
+    const rows = buildTable([
+      issue({
+        closedByPullRequestsReferences: {
+          nodes: [
+            {
+              number: 7,
+              body: marker({ phase: "IN-REVIEW", issue: 1, blocked: false }),
+              comments: { nodes: [] },
+              reviewDecision: "CHANGES_REQUESTED",
+              latestReviews: {
+                nodes: [
+                  { state: "CHANGES_REQUESTED", body: "rename the field", author: { login: "bob" } },
+                  { state: "COMMENTED", body: "nit", author: { login: "carol" } },
+                ],
+              },
+            },
+          ],
+        },
+      }) as never,
+    ]);
+    assert.equal(rows[0].agentPr?.reviewDecision, "CHANGES_REQUESTED");
+    assert.deepEqual(rows[0].agentPr?.changeRequests, [
+      { author: "bob", body: "rename the field" },
+    ]);
+  });
+
   test("ignores linked PRs without an agent-state marker", () => {
     const rows = buildTable([
       issue({
