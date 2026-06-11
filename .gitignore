@@ -1,0 +1,5 @@
+node_modules
+dist
+.claude/
+.openspec-auto.json
+.openspec-auto/

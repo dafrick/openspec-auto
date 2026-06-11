@@ -1,0 +1,16 @@
+{
+  "name": "openspec-auto",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "init": "tsx scripts/init.ts",
+    "build": "tsc",
+    "test": "node --test --import tsx/esm scripts/**/*.test.ts"
+  },
+  "devDependencies": {
+    "@inquirer/prompts": "^7.5.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
