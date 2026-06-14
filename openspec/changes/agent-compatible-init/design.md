@@ -9,6 +9,7 @@ The fix is a flag-driven bypass: when flags are present, skip the `await input(.
 ## Goals / Non-Goals
 
 **Goals:**
+- Refactor `init.ts` to export `main`, `inferReviewer`, and `inferDefaultBranch` as named exports and guard the auto-run with `if (import.meta.url === \`file://${process.argv[1]}\`) { main() }` — matching the pattern already used in `setup-workspace.ts` and `survey.ts`. This is a prerequisite for test-file imports that do not trigger the interactive flow.
 - Add `--yes` / `-y` flag: infer both values and write config without any prompts
 - Add `--reviewer <handle>` and `--branch <name>` override flags for explicit agent control
 - Exit non-zero with a clear message when `--yes` is set and inference returns an empty string for `reviewer` (the only value without a safe default)
@@ -35,7 +36,7 @@ The fix is a flag-driven bypass: when flags are present, skip the `await input(.
 
 ### D2: Flag parsing via `util.parseArgs` (Node.js built-in)
 
-**Decision:** Use `node:util`'s `parseArgs` — available in Node 18+, already the minimum runtime for this project.
+**Decision:** Use `node:util`'s `parseArgs` — available since Node 18.3, and the project already requires Node ≥ 24 (`engines.node: ">=24"` in `package.json`), so this is well within range. Pass `{ strict: false }` so that unrecognized flags are silently ignored rather than throwing, matching the spec requirement that unknown flags do not crash the process.
 
 **Alternatives considered:**
 - *`minimist` / `yargs`*: adds a dependency; unnecessary for three flags.
