@@ -130,6 +130,50 @@ describe("init --reviewer and --branch flags", () => {
   });
 });
 
+describe("init --reviewer alone (single-flag non-interactive)", () => {
+  test("activates non-interactive mode with --reviewer alone, uses inferred branch", async () => {
+    process.argv = ["node", "init.ts", "--reviewer", "explicit-reviewer"];
+
+    let inferBranchCalled = false;
+
+    await main(
+      () => "should-not-be-used",
+      () => {
+        inferBranchCalled = true;
+        return "inferred-branch";
+      }
+    );
+
+    assert.equal(inferBranchCalled, true, "inferDefaultBranch should be called when --branch is not supplied");
+
+    const config = JSON.parse(readFileSync(join(tmp, ".openspec-auto.json"), "utf8"));
+    assert.equal(config.reviewer, "explicit-reviewer");
+    assert.equal(config.defaultBranch, "inferred-branch");
+  });
+});
+
+describe("init --branch alone (single-flag non-interactive)", () => {
+  test("activates non-interactive mode with --branch alone, uses inferred reviewer", async () => {
+    process.argv = ["node", "init.ts", "--branch", "develop"];
+
+    let inferReviewerCalled = false;
+
+    await main(
+      () => {
+        inferReviewerCalled = true;
+        return "inferred-reviewer";
+      },
+      () => "should-not-be-used"
+    );
+
+    assert.equal(inferReviewerCalled, true, "inferReviewer should be called when --reviewer is not supplied");
+
+    const config = JSON.parse(readFileSync(join(tmp, ".openspec-auto.json"), "utf8"));
+    assert.equal(config.reviewer, "inferred-reviewer");
+    assert.equal(config.defaultBranch, "develop");
+  });
+});
+
 describe("init interactive path (no flags)", () => {
   test("without --yes or --reviewer+--branch flags, main() calls input() for both prompts", async () => {
     process.argv = ["node", "init.ts"];
