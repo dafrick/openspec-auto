@@ -1,10 +1,19 @@
+## 0. Refactor entry point (prerequisite for TDD)
+
+`init.ts` currently calls `main()` unconditionally at module top-level and exports nothing, which means importing it from a test file would immediately execute the interactive flow. The rest of the codebase uses an established pattern (`setup-workspace.ts`, `survey.ts`) that makes files testable. Apply the same pattern here before writing any tests.
+
+- [ ] 0.1 Export `inferReviewer` and `inferDefaultBranch` as named exports from `skill/openspec-auto/scripts/init.ts`
+- [ ] 0.2 Export `main` as a named export
+- [ ] 0.3 Guard the auto-run with `if (import.meta.url === \`file://${process.argv[1]}\`) { main() }` so importing the module from tests does not execute the interactive flow
+- [ ] 0.4 Verify the interactive flow still works end-to-end after the refactor (no behavior change for human users)
+
 ## 1. Tests (write first — TDD)
 
 - [ ] 1.1 Create `skill/openspec-auto/scripts/init.test.ts` with a test for the `--yes` flag happy path: mock `inferReviewer`/`inferDefaultBranch` to return known values, assert `.openspec-auto.json` is written correctly and the process exits zero
 - [ ] 1.2 Add test: `--yes` with empty reviewer inference exits non-zero and does NOT write config
 - [ ] 1.3 Add test: `--reviewer <handle> --branch <name>` writes those values directly without calling inference functions
 - [ ] 1.4 Add test: no flags → interactive path is still invoked (confirm `@inquirer/prompts`' `input` is called, not skipped)
-- [ ] 1.5 Verify all new tests fail (red) before touching `init.ts`
+- [ ] 1.5 Verify all new tests fail (red) before touching `init.ts` further
 
 ## 2. Implementation
 

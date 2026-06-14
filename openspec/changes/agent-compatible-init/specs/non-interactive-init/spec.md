@@ -63,8 +63,9 @@ When running in non-interactive mode via `--yes` and reviewer inference returns 
 ---
 
 ### Requirement: Flag parsing uses Node.js built-in util.parseArgs
-The `init` script SHALL use `util.parseArgs` from the Node.js `node:util` built-in module for CLI flag parsing. No third-party argument-parsing library SHALL be added.
+The `init` script SHALL use `util.parseArgs` from the Node.js `node:util` built-in module for CLI flag parsing. No third-party argument-parsing library SHALL be added. `parseArgs` SHALL be called with `{ strict: false }` so that unrecognized flags do not throw.
 
 #### Scenario: Unknown flags are ignored gracefully
 - **WHEN** `init` is invoked with an unrecognized flag
-- **THEN** the script SHALL NOT crash with an unhandled error (either ignore or emit a warning)
+- **THEN** the script SHALL NOT crash with an unhandled error
+- **THEN** the script SHALL silently ignore the unknown flag and proceed normally (achieved via `strict: false` passed to `parseArgs`)
