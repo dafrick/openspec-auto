@@ -174,6 +174,48 @@ describe("init --branch alone (single-flag non-interactive)", () => {
   });
 });
 
+describe("init --reviewer bare flag (no value)", () => {
+  test("falls back to inference and exits 1 when inference returns empty string", async () => {
+    // `--reviewer` with no value: parseArgs gives values.reviewer === true (boolean)
+    // The narrowing fix treats this as "not a string", so it falls through to inferReviewerFn()
+    process.argv = ["node", "init.ts", "--reviewer"];
+
+    await assert.rejects(
+      () =>
+        main(
+          () => "", // inference returns empty → should trigger error
+          () => "main"
+        ),
+      /process\.exit\(1\)/
+    );
+
+    assert.equal(exitCode, 1, "should exit with code 1 when reviewer cannot be resolved");
+    assert.ok(
+      !existsSync(join(tmp, ".openspec-auto.json")),
+      ".openspec-auto.json must NOT be written with a bare --reviewer flag and empty inference"
+    );
+  });
+
+  test("falls back to inference and writes config when inference returns a valid string", async () => {
+    // `--reviewer` with no value: narrowing fix falls back to inferReviewerFn()
+    // If inference succeeds, the config should be written with the inferred value
+    process.argv = ["node", "init.ts", "--reviewer"];
+
+    await main(
+      () => "inferred-reviewer",
+      () => "main"
+    );
+
+    assert.equal(exitCode, undefined, "process.exit should not have been called on success");
+
+    const configPath = join(tmp, ".openspec-auto.json");
+    assert.ok(existsSync(configPath), ".openspec-auto.json should be written when inference succeeds");
+    const config = JSON.parse(readFileSync(configPath, "utf8"));
+    assert.equal(config.reviewer, "inferred-reviewer", "config must contain the inferred reviewer string, not a boolean");
+    assert.equal(typeof config.reviewer, "string", "reviewer must be a string, not boolean");
+  });
+});
+
 describe("init interactive path (no flags)", () => {
   test("without --yes or --reviewer+--branch flags, main() calls input() for both prompts", async () => {
     process.argv = ["node", "init.ts"];
