@@ -77,9 +77,9 @@ export async function main(
 
   if (nonInteractive) {
     const resolvedReviewer =
-      values.reviewer !== undefined ? values.reviewer : inferReviewerFn();
+      typeof values.reviewer === "string" ? values.reviewer : inferReviewerFn();
     const resolvedBranch =
-      values.branch !== undefined ? values.branch : inferDefaultBranchFn();
+      typeof values.branch === "string" ? values.branch : inferDefaultBranchFn();
 
     if (!resolvedReviewer) {
       console.error(
