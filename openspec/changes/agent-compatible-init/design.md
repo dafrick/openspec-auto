@@ -42,9 +42,9 @@ The fix is a flag-driven bypass: when flags are present, skip the `await input(.
 - *`minimist` / `yargs`*: adds a dependency; unnecessary for three flags.
 - *Manual `process.argv` parsing*: fragile and harder to maintain.
 
-### D3: Non-zero exit when `--yes` is set and reviewer inference fails
+### D3: Non-zero exit when non-interactive mode is active and reviewer inference fails
 
-**Decision:** If `--yes` is set and `inferReviewer()` returns `""` (empty string), print an error message and `process.exit(1)`. Do not write a config with an empty reviewer field.
+**Decision:** If non-interactive mode is active (any of `--yes`, `--reviewer`, or `--branch` supplied) and the resolved reviewer is `""` (empty string — neither a flag value nor inference returned one), print an error message and `process.exit(1)`. Do not write a config with an empty reviewer field.
 
 **Rationale:** An empty reviewer would silently produce a broken config that fails at review time rather than at init time. Fast failure with a clear message is better. `defaultBranch` already has a hardcoded fallback of `"main"`, so it never produces an empty value.
 
@@ -58,4 +58,4 @@ The fix is a flag-driven bypass: when flags are present, skip the `await input(.
 
 - **Node.js version constraint**: `util.parseArgs` requires Node 18+. The project already targets Node 18+, so this is not a new constraint — but it should be verified in the runtime docs/CI matrix. → Mitigation: document in the spec and verify CI node version.
 - **`--yes` with no `gh` CLI**: If `gh` is absent, `inferReviewer()` returns `""` and init exits non-zero. This is the correct behavior (clear error > silent bad config). → Mitigation: the error message should tell the user to install `gh` or use `--reviewer <handle>` explicitly.
-- **Interactive path untouched**: The design is strictly additive — the `await input(...)` calls are only skipped when `--yes` or both explicit overrides are provided. Human users running `init` with no flags get exactly the same experience as today.
+- **Interactive path untouched**: The design is strictly additive — the `await input(...)` calls are only skipped when any of `--yes`, `--reviewer`, or `--branch` is supplied. Human users running `init` with no flags get exactly the same experience as today.
