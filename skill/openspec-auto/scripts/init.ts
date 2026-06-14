@@ -72,7 +72,8 @@ export async function main(
 
   const nonInteractive =
     values.yes === true ||
-    (values.reviewer !== undefined && values.branch !== undefined);
+    values.reviewer !== undefined ||
+    values.branch !== undefined;
 
   if (nonInteractive) {
     const resolvedReviewer =
