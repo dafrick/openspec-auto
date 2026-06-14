@@ -94,7 +94,7 @@ Reviews are stateless — `proposal-review` and `code-review` read the current s
 
 Each stage writes its phase to `state.json` and syncs it to the PR, then does its work. Sub-agent stages are dispatched with the `Agent` tool, the matching prompt template, and the model from **Model Selection**.
 
-**Bring-up.** Read `.openspec-auto.json` (reviewer, default branch). If it's missing or invalid, stop and tell the user to run init. That's all — the loop reads no local state across runs; in-flight work is discovered by Triage from the open PRs.
+**Bring-up.** Read `.openspec-auto.json` (reviewer, default branch). If it's missing or invalid, run `$OSL/node_modules/.bin/tsx $OSL/scripts/init.ts --yes` to auto-initialize: on exit 0, re-read the newly created config and proceed; on non-zero, surface the error output and stop. If the config is present and valid, read it directly. That's all — the loop reads no local state across runs; in-flight work is discovered by Triage from the open PRs.
 
 **Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It builds an issue-keyed table (most-recently-updated first), joining each issue to its associated agent PR, and returns the single best next action: `RESUME` (the most-advanced in-flight PR, with its recorded phase), `SELECTED` (a new issue, with branch prefix + slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`. Resumable work takes precedence over new issues.
 
