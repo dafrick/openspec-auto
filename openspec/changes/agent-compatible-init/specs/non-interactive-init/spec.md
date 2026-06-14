@@ -40,6 +40,17 @@ The `init` script SHALL accept `--reviewer <handle>` and `--branch <name>` flags
 
 ---
 
+### Requirement: Any non-interactive flag activates non-interactive mode
+Any of `--yes`, `--reviewer`, or `--branch` alone (or in any combination) SHALL activate non-interactive mode. When non-interactive mode is active, the script SHALL NOT show any interactive prompts. For any field not supplied via an explicit flag, the inferred value SHALL be used directly (no prompting).
+
+#### Scenario: Non-interactive mode activation rule
+- **WHEN** `init` is invoked with any of `--yes`, `--reviewer <value>`, or `--branch <value>` (alone or in combination)
+- **THEN** the script SHALL skip all interactive prompts
+- **THEN** for each flag supplied, the script SHALL use the explicit value without calling the corresponding inference function
+- **THEN** for each flag NOT supplied, the script SHALL call the corresponding inference function and use the returned value directly
+
+---
+
 ### Requirement: Init exits non-zero when --yes is set and reviewer inference fails
 When running in non-interactive mode via `--yes` and reviewer inference returns an empty string, the script SHALL exit non-zero with a diagnostic message rather than writing a config with an empty reviewer field.
 
