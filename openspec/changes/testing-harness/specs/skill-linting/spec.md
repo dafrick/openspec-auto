@@ -13,6 +13,7 @@ Linters included:
 - `dotcommander/cclint` (Go) — Claude Code config validator
 - `agent-sh/agnix` (npm) — 423-rule validator for SKILL.md, CLAUDE.md, hooks, MCP
 - `kurtpayne/skillscan-lint` (Python) — readability, clarity, graph integrity
+- `agent-ecosystem/skill-validator` (Go) — token counts, content density metrics, LLM-as-judge scoring
 
 #### Scenario: A skill linter reports violations
 - **WHEN** an experimental skill linter finds issues in the skill files
@@ -23,7 +24,7 @@ Linters included:
 - **THEN** the CI job captures the error output but the workflow step is configured with `continue-on-error: true`, so the PR is not blocked
 
 #### Scenario: All experimental linters pass
-- **WHEN** all 9 experimental skill linters complete without findings
+- **WHEN** all 10 experimental skill linters complete without findings
 - **THEN** all experimental jobs exit 0 and show green
 
 ### Requirement: Individual job isolation
