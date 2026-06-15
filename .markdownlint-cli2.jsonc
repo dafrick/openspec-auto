@@ -1,0 +1,17 @@
+{
+  // markdownlint-cli2 config for skill/**/*.md
+  "config": {
+    "default": true,
+    // MD013: Line length — disable; prompt files have long lines by necessity
+    "MD013": false,
+    // MD033: Inline HTML — disable; some prompts use HTML comments
+    "MD033": false,
+    // MD040: Fenced code language — disable; prompts have many unlabelled example blocks
+    "MD040": false,
+    // MD041: First line heading — disable; SKILL.md has frontmatter, prompts start with prose
+    "MD041": false,
+    // MD060: Table column style — disable; compact tables are intentional in skill files
+    "MD060": false
+  },
+  "globs": ["skill/**/*.md", "!skill/**/node_modules/**"]
+}

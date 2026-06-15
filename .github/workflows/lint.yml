@@ -1,0 +1,170 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # ── Core linters (blocking) ───────────────────────────────────────────────
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: skill/openspec-auto/package-lock.json
+      - run: npm ci
+        working-directory: skill/openspec-auto
+      - run: npx tsc --noEmit
+        working-directory: skill/openspec-auto
+
+  lint-scripts:
+    name: lint-scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: skill/openspec-auto/package-lock.json
+      - run: npm ci
+        working-directory: skill/openspec-auto
+      - run: npx biome check .
+        working-directory: skill/openspec-auto
+
+  lint-md:
+    name: lint-md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx markdownlint-cli2 "skill/**/*.md" "!skill/**/node_modules/**"
+
+  # ── Experimental skill linters (non-blocking) ────────────────────────────
+
+  lint-quick-validate:
+    name: lint-quick-validate
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Clone anthropics/skills and run quick_validate
+        run: |
+          git clone --depth 1 https://github.com/anthropics/skills.git /tmp/anthropics-skills
+          python3 /tmp/anthropics-skills/skills/skill-creator/scripts/quick_validate.py skill/openspec-auto || true
+
+  lint-skill-lint:
+    name: lint-skill-lint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx -y himself65/skill-lint skill/openspec-auto || true
+
+  lint-agent-skills-lint:
+    name: lint-agent-skills-lint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx -y @swarmclawai/agent-skills-lint lint skill/openspec-auto || true
+
+  lint-skill-check:
+    name: lint-skill-check
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx -y skill-check skill/openspec-auto || true
+
+  lint-agent-skill-linter:
+    name: lint-agent-skill-linter
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx -y agent-skill-linter skill/openspec-auto || true
+
+  lint-pulser:
+    name: lint-pulser
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx -y pulser-cli skill/openspec-auto || true
+
+  lint-cclint:
+    name: lint-cclint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install github.com/dotcommander/cclint@latest
+      - run: cclint skill/openspec-auto || true
+
+  lint-agnix:
+    name: lint-agnix
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx -y agnix skill/openspec-auto || true
+
+  lint-skillscan:
+    name: lint-skillscan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install skillscan-lint 2>/dev/null || git clone --depth 1 https://github.com/kurtpayne/skillscan-lint.git /tmp/skillscan-lint && pip install /tmp/skillscan-lint 2>/dev/null || true
+      - run: skillscan skill/openspec-auto || true
+
+  lint-skill-validator:
+    name: lint-skill-validator
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install github.com/agent-ecosystem/skill-validator@latest
+      - run: skill-validator skill/openspec-auto || true

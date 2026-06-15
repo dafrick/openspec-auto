@@ -121,6 +121,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 **Code review.** Mark the PR ready (`gh pr ready`), then dispatch the code-review sub-agent (`prompts/code-review.md`) with the PR and `changeName` (the spec is its basis — no issue needed). It judges the current diff and returns findings — it changes nothing. Handle its verdict per **Review cycles** (`APPROVED`/minor → Wrap up; blocking → rerun Implement).
 
 **Wrap up.** Set phase `IN_REVIEW` — the agent's work is done and the PR now awaits human review (it is *not* merged; the loop never merges). Then, in order:
+
 1. **Reconcile the artifacts with what shipped.** Read `openspec/changes/<changeName>/` — `proposal.md`, `design.md`, `tasks.md` — and confirm they describe what was actually built. `implement` keeps spec and code in sync on a code-review rerun, but scope can still drift without a rerun. Check every task in `tasks.md` is checked off, and that the proposal and design reflect the final approach (not the original plan, if it changed). If anything is stale, edit it, then commit (`chore(openspec): reconcile artifacts for #<N>`) and push. The change must describe the merged code *before* it is archived.
 2. Run `opsx:archive` on `<changeName>` to archive the completed change.
 3. **Commit the archive** (`chore(openspec): archive <changeName>`) **and push** — the archive is a file move that must land in the PR *before* the human merges, so it has to be committed and pushed here (Teardown's `--force` worktree removal would otherwise discard it).

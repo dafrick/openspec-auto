@@ -1,14 +1,9 @@
-import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import {
-  mkdtempSync,
-  rmSync,
-  readFileSync,
-  existsSync,
-} from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { main, type InputFn } from "./init.js";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, test } from "node:test";
+import { type InputFn, main } from "./init.js";
 
 // Save and restore process state around each test
 let originalCwd: string;
@@ -71,7 +66,11 @@ describe("init --yes (non-interactive happy path)", () => {
         () => "main"
       )
     );
-    assert.equal(exitCode, undefined, "process.exit should not have been called");
+    assert.equal(
+      exitCode,
+      undefined,
+      "process.exit should not have been called"
+    );
   });
 });
 
@@ -121,10 +120,20 @@ describe("init --reviewer and --branch flags", () => {
       }
     );
 
-    assert.equal(inferReviewerCalled, false, "inferReviewer should not be called when --reviewer is explicit");
-    assert.equal(inferBranchCalled, false, "inferDefaultBranch should not be called when --branch is explicit");
+    assert.equal(
+      inferReviewerCalled,
+      false,
+      "inferReviewer should not be called when --reviewer is explicit"
+    );
+    assert.equal(
+      inferBranchCalled,
+      false,
+      "inferDefaultBranch should not be called when --branch is explicit"
+    );
 
-    const config = JSON.parse(readFileSync(join(tmp, ".openspec-auto.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(tmp, ".openspec-auto.json"), "utf8")
+    );
     assert.equal(config.reviewer, "explicit-reviewer");
     assert.equal(config.defaultBranch, "develop");
   });
@@ -144,9 +153,15 @@ describe("init --reviewer alone (single-flag non-interactive)", () => {
       }
     );
 
-    assert.equal(inferBranchCalled, true, "inferDefaultBranch should be called when --branch is not supplied");
+    assert.equal(
+      inferBranchCalled,
+      true,
+      "inferDefaultBranch should be called when --branch is not supplied"
+    );
 
-    const config = JSON.parse(readFileSync(join(tmp, ".openspec-auto.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(tmp, ".openspec-auto.json"), "utf8")
+    );
     assert.equal(config.reviewer, "explicit-reviewer");
     assert.equal(config.defaultBranch, "inferred-branch");
   });
@@ -166,9 +181,15 @@ describe("init --branch alone (single-flag non-interactive)", () => {
       () => "should-not-be-used"
     );
 
-    assert.equal(inferReviewerCalled, true, "inferReviewer should be called when --reviewer is not supplied");
+    assert.equal(
+      inferReviewerCalled,
+      true,
+      "inferReviewer should be called when --reviewer is not supplied"
+    );
 
-    const config = JSON.parse(readFileSync(join(tmp, ".openspec-auto.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(tmp, ".openspec-auto.json"), "utf8")
+    );
     assert.equal(config.reviewer, "inferred-reviewer");
     assert.equal(config.defaultBranch, "develop");
   });
@@ -189,7 +210,11 @@ describe("init --reviewer bare flag (no value)", () => {
       /process\.exit\(1\)/
     );
 
-    assert.equal(exitCode, 1, "should exit with code 1 when reviewer cannot be resolved");
+    assert.equal(
+      exitCode,
+      1,
+      "should exit with code 1 when reviewer cannot be resolved"
+    );
     assert.ok(
       !existsSync(join(tmp, ".openspec-auto.json")),
       ".openspec-auto.json must NOT be written with a bare --reviewer flag and empty inference"
@@ -206,13 +231,28 @@ describe("init --reviewer bare flag (no value)", () => {
       () => "main"
     );
 
-    assert.equal(exitCode, undefined, "process.exit should not have been called on success");
+    assert.equal(
+      exitCode,
+      undefined,
+      "process.exit should not have been called on success"
+    );
 
     const configPath = join(tmp, ".openspec-auto.json");
-    assert.ok(existsSync(configPath), ".openspec-auto.json should be written when inference succeeds");
+    assert.ok(
+      existsSync(configPath),
+      ".openspec-auto.json should be written when inference succeeds"
+    );
     const config = JSON.parse(readFileSync(configPath, "utf8"));
-    assert.equal(config.reviewer, "inferred-reviewer", "config must contain the inferred reviewer string, not a boolean");
-    assert.equal(typeof config.reviewer, "string", "reviewer must be a string, not boolean");
+    assert.equal(
+      config.reviewer,
+      "inferred-reviewer",
+      "config must contain the inferred reviewer string, not a boolean"
+    );
+    assert.equal(
+      typeof config.reviewer,
+      "string",
+      "reviewer must be a string, not boolean"
+    );
   });
 });
 
@@ -246,7 +286,9 @@ describe("init interactive path (no flags)", () => {
     );
 
     // Config should be written with the values returned by the mock prompts
-    const config = JSON.parse(readFileSync(join(tmp, ".openspec-auto.json"), "utf8"));
+    const config = JSON.parse(
+      readFileSync(join(tmp, ".openspec-auto.json"), "utf8")
+    );
     assert.equal(config.reviewer, "inferred-reviewer");
     assert.equal(config.defaultBranch, "main");
   });

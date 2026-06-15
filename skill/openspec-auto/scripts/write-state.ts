@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type AgentState, VALID_PHASES } from "./types.js";
 
@@ -14,7 +14,7 @@ export function writeState(state: AgentState, cwd = process.cwd()): void {
   const dir = join(cwd, STATE_DIR);
   const file = join(cwd, STATE_FILE);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(file, JSON.stringify(state, null, 2) + "\n", "utf8");
+  writeFileSync(file, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
