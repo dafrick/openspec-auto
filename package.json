@@ -1,0 +1,36 @@
+{
+  "name": "openspec-auto",
+  "version": "0.1.0",
+  "description": "Use to autonomously resolve one GitHub issue end-to-end — triage, explore, propose, implement test-first, review, and hand off a ready PR — with a full OpenSpec paper trail. Invoke via /loop so it resumes across iterations.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dafrick/openspec-auto"
+  },
+  "keywords": [],
+  "author": "Damian Frick <damian@damianfrick.com>",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/dafrick/openspec-auto/issues"
+  },
+  "homepage": "https://github.com/dafrick/openspec-auto#readme",
+  "engines": {
+    "node": ">=24"
+  },
+  "skillet": {
+    "skillDir": "skill/openspec-auto/"
+  },
+  "bin": {
+    "openspec-auto": "./bin/cli.js"
+  },
+  "dependencies": {
+    "@skillet-cli/core": "^0.2.3"
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.22.1"
+  }
+}

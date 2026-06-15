@@ -1,6 +1,6 @@
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseAgentState, buildTable } from "./survey.js";
+import { describe, test } from "node:test";
+import { buildTable, parseAgentState } from "./survey.js";
 
 const marker = (obj: object) => `<!-- agent-state: ${JSON.stringify(obj)} -->`;
 
@@ -17,7 +17,10 @@ describe("parseAgentState", () => {
   });
 
   test("returns null on invalid phase", () => {
-    assert.equal(parseAgentState(marker({ phase: "BOGUS", blocked: false })), null);
+    assert.equal(
+      parseAgentState(marker({ phase: "BOGUS", blocked: false })),
+      null
+    );
   });
 
   test("returns null on malformed JSON", () => {
@@ -51,7 +54,14 @@ describe("buildTable", () => {
             {
               number: 7,
               body: marker({ phase: "CODE_REVIEW", issue: 1, blocked: false }),
-              comments: { nodes: [{ author: { login: "alice" }, createdAt: "2026-01-02T00:00:00Z" }] },
+              comments: {
+                nodes: [
+                  {
+                    author: { login: "alice" },
+                    createdAt: "2026-01-02T00:00:00Z",
+                  },
+                ],
+              },
             },
           ],
         },
@@ -74,7 +84,13 @@ describe("buildTable", () => {
   });
 
   test("preserves issue order from the query", () => {
-    const rows = buildTable([issue({ number: 3 }) as never, issue({ number: 1 }) as never]);
-    assert.deepEqual(rows.map((r) => r.issue), [3, 1]);
+    const rows = buildTable([
+      issue({ number: 3 }) as never,
+      issue({ number: 1 }) as never,
+    ]);
+    assert.deepEqual(
+      rows.map((r) => r.issue),
+      [3, 1]
+    );
   });
 });

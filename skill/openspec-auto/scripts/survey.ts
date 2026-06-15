@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { VALID_PHASES, type Phase } from "./types.js";
+import { type Phase, VALID_PHASES } from "./types.js";
 
 /**
  * Surveys the repo in one shot: open issues (most-recently-updated first),
@@ -119,7 +119,11 @@ const QUERY = `query($owner:String!,$name:String!){repository(owner:$owner,name:
 
 const PAGE_QUERY = `query($id:ID!,$cursor:String!){node(id:$id){... on Issue{comments(first:100,after:$cursor){${COMMENT_FIELDS}}}... on PullRequest{comments(first:100,after:$cursor){${COMMENT_FIELDS}}}}}`;
 
-function gql(query: string, vars: Record<string, string>, cwd: string): unknown {
+function gql(
+  query: string,
+  vars: Record<string, string>,
+  cwd: string
+): unknown {
   const args = Object.entries(vars)
     .map(([k, v]) => `-f ${k}=${JSON.stringify(v)}`)
     .join(" ");

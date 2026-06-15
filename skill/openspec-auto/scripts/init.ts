@@ -1,5 +1,10 @@
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { input } from "@inquirer/prompts";
@@ -47,11 +52,14 @@ function updateGitignore(cwd: string): void {
     : "";
   const toAdd = GITIGNORE_ENTRIES.filter((e) => !existing.includes(e));
   if (toAdd.length === 0) return;
-  appendFileSync(gitignorePath, toAdd.map((e) => `\n${e}`).join("") + "\n");
+  appendFileSync(gitignorePath, `${toAdd.map((e) => `\n${e}`).join("")}\n`);
   console.log(`\nAdded to .gitignore: ${toAdd.join(", ")}`);
 }
 
-export type InputFn = (config: { message: string; default?: string }) => Promise<string>;
+export type InputFn = (config: {
+  message: string;
+  default?: string;
+}) => Promise<string>;
 
 export async function main(
   inferReviewerFn: () => string = inferReviewer,
@@ -79,7 +87,9 @@ export async function main(
     const resolvedReviewer =
       typeof values.reviewer === "string" ? values.reviewer : inferReviewerFn();
     const resolvedBranch =
-      typeof values.branch === "string" ? values.branch : inferDefaultBranchFn();
+      typeof values.branch === "string"
+        ? values.branch
+        : inferDefaultBranchFn();
 
     if (!resolvedReviewer) {
       console.error(
@@ -105,7 +115,7 @@ export async function main(
       reviewer: resolvedReviewer,
       defaultBranch: resolvedBranch,
     };
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+    writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
     console.log(`\nConfig written to ${CONFIG_FILE}`);
 
     updateGitignore(cwd);
@@ -146,7 +156,7 @@ export async function main(
   }
 
   const config: LoopConfig = { ...existing, reviewer, defaultBranch };
-  writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+  writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
   console.log(`\nConfig written to ${CONFIG_FILE}`);
 
   updateGitignore(cwd);

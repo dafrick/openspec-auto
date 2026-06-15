@@ -1,5 +1,5 @@
+import { editPrBody, readPrBody } from "./pr-body.js";
 import { readState } from "./read-state.js";
-import { readPrBody, editPrBody } from "./pr-body.js";
 import type { AgentState } from "./types.js";
 
 export function renderPrBlock(state: AgentState): string {
@@ -24,7 +24,8 @@ export function renderPrBlock(state: AgentState): string {
   return table;
 }
 
-export const AGENT_STATUS_PATTERN = /## Agent Status[\s\S]*?<!-- agent-state:.*?-->/;
+export const AGENT_STATUS_PATTERN =
+  /## Agent Status[\s\S]*?<!-- agent-state:.*?-->/;
 
 /**
  * Update only the `## Agent Status` block in the PR body, in place. The status
@@ -47,7 +48,7 @@ export function syncPrState(prNumber: number, cwd = process.cwd()): void {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const prNumber = parseInt(process.argv[2] ?? "", 10);
-  if (isNaN(prNumber)) {
+  if (Number.isNaN(prNumber)) {
     console.error("Usage: tsx scripts/sync-pr-state.ts <pr-number>");
     process.exit(1);
   }
