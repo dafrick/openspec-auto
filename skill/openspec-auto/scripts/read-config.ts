@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { LoopConfig } from "./config-types.js";
 
@@ -36,7 +36,7 @@ function ensureGitignoreEntry(cwd: string): void {
   const contents = readFileSync(gitignore, "utf8");
   const toAdd = GITIGNORE_ENTRIES.filter((e) => !contents.includes(e));
   if (toAdd.length > 0) {
-    appendFileSync(gitignore, toAdd.map((e) => `\n${e}`).join("") + "\n");
+    appendFileSync(gitignore, `${toAdd.map((e) => `\n${e}`).join("")}\n`);
   }
 }
 

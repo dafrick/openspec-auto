@@ -48,7 +48,9 @@ Begin with a status line, then the full discovery output from step 3.
 ```
 **Status:** EXPLORED
 ```
+
 or
+
 ```
 **Status:** NEEDS_INPUT
 ```

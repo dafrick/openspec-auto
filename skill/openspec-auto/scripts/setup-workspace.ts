@@ -1,8 +1,8 @@
 import { execSync } from "node:child_process";
-import { writeState } from "./write-state.js";
-import { syncPrState } from "./sync-pr-state.js";
 import { readConfig } from "./read-config.js";
 import { parseAgentState } from "./survey.js";
+import { syncPrState } from "./sync-pr-state.js";
+import { writeState } from "./write-state.js";
 
 /**
  * Belt-and-suspenders dedup, independent of triage's linked-PR graph.
@@ -81,7 +81,7 @@ export function setupWorkspace(args: SetupArgs, cwd = process.cwd()): number {
     `gh pr create --draft --title ${JSON.stringify(title)} --body ${JSON.stringify(`Closes #${issue}`)} --base ${base}`
   );
   const prNumber = parseInt(prUrl.split("/").pop() ?? "", 10);
-  if (isNaN(prNumber)) {
+  if (Number.isNaN(prNumber)) {
     throw new Error(`Could not parse PR number from: ${prUrl}`);
   }
 
