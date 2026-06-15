@@ -6,7 +6,7 @@ The repo contains two distinct code surfaces: TypeScript scripts in `skill/opens
 
 **Goals:**
 - Fast, reliable blocking CI jobs for the two core surfaces (TypeScript, Markdown)
-- Non-blocking experimental jobs for 9 skill-specific linters so they can be evaluated without gating PRs
+- Non-blocking experimental jobs for 10 skill-specific linters so they can be evaluated without gating PRs
 - Single Justfile at repo root so contributors run the same commands as CI
 - Devcontainer that installs all runtimes (Node, Go, Python, just) without a custom image
 - Minimal CONTRIBUTING.md scoped to setup + running checks
@@ -22,24 +22,24 @@ The repo contains two distinct code surfaces: TypeScript scripts in `skill/opens
 Biome is a single binary that handles both formatting and lint rules for TypeScript/JavaScript. One config file (`biome.json`), much faster, no plugin ecosystem to manage. The downside is a smaller rule set than ESLint — acceptable here since the scripts are internal tooling, not a public library. Alternative: ESLint + Prettier is more configurable but adds two config files and a plugin chain.
 
 ### Two CI tiers: required vs. experimental
-The 9 skill linters are all under a week old. Blocking PRs on immature tooling would create noise and friction. The experimental tier runs all jobs in parallel, collects results, and always exits 0 — giving visibility without risk. Once a linter proves its value (or doesn't), it can be promoted or dropped. Alternative: only run proven tools — loses the exploration benefit.
+The 10 skill linters are all under a week old. Blocking PRs on immature tooling would create noise and friction. The experimental tier runs all jobs in parallel, collects results, and always exits 0 — giving visibility without risk. Once a linter proves its value (or doesn't), it can be promoted or dropped. Alternative: only run proven tools — loses the exploration benefit.
 
 ### Justfile over npm scripts / Makefile
 npm scripts can't cleanly span the root and skill sub-package. Makefile has tab-sensitive syntax and was designed for build artifacts. `just` is a purpose-built task runner with clean shell-like syntax, a single binary install, and maps 1:1 to CI job names. Alternative: `task` (go-task) is YAML-based and more feature-rich but overkill here.
 
 ### Off-the-shelf devcontainer image + Features
-`mcr.microsoft.com/devcontainers/typescript-node:22` ships Node 22 and common tools. Devcontainer Features add Go, Python, and `just` without a custom Dockerfile. `postCreateCommand` handles npm installs. Alternative: custom Dockerfile gives more control but adds maintenance burden and build time.
+`mcr.microsoft.com/devcontainers/typescript-node:24` ships Node 24 and common tools, matching the `engines.node: >=24` declared in root `package.json`. Devcontainer Features add Go, Python, and `just` without a custom Dockerfile. `postCreateCommand` handles npm installs. Alternative: custom Dockerfile gives more control but adds maintenance burden and build time.
 
 ### markdownlint-cli2 at root, Biome inside skill sub-package
 markdownlint targets `skill/**/*.md` — a repo-level concern. Biome targets only the TypeScript scripts — a sub-package concern. Keeping each tool co-located with what it governs avoids cross-package config leakage.
 
 ### Skill linter selection
-Include all 9 confirmed-real skill-specific CLIs. Exclude `majesticlabs-dev/skill-linter` (it's an agent skill, not a CLI — can't run in CI). Each linter gets its own CI job and its own `just` target. Runtimes required beyond Node: Python (for `anthropics/skills quick_validate.py` and `kurtpayne/skillscan-lint`), Go (for `agent-ecosystem/skill-validator` and `dotcommander/cclint`).
+Include all 10 confirmed-real skill-specific CLIs. Exclude `majesticlabs-dev/skill-linter` (it's an agent skill, not a CLI — can't run in CI). Each linter gets its own CI job and its own `just` target. Runtimes required beyond Node: Python (for `anthropics/skills quick_validate.py` and `kurtpayne/skillscan-lint`), Go (for `agent-ecosystem/skill-validator` and `dotcommander/cclint`). Note: `agent-sh/agnix` is npm-based despite its Rust implementation — no Go setup needed for it.
 
 ## Risks / Trade-offs
 
 - **Experimental linters may be flaky or abandoned** → Non-blocking tier means failures are visible but don't block work. If a tool disappears from npm/GitHub, its job fails silently and can be removed.
 - **Go and Python runtime requirements in CI** → GitHub Actions `ubuntu-latest` runners have Python pre-installed; Go needs a `setup-go` step. Adds ~20s to those jobs but is standard practice.
-- **`just` requires a separate install** → Not in npm, so contributors need to install it (brew, apt, cargo). CONTRIBUTING.md documents this. Devcontainer handles it automatically via Features.
+- **`just` requires a separate install everywhere** → Not in npm, not pre-installed on GitHub Actions runners. Contributors install via brew/apt/cargo; CONTRIBUTING.md documents this; devcontainer installs via Features; CI uses the `extractions/setup-just` community action.
 - **Biome may conflict with existing editor formatting** → `.editorconfig` or VS Code settings could fight Biome's formatter. Mitigated by recommending the Biome VS Code extension in devcontainer customizations.
 - **Skill linter ecosystem is immature** → Some tools may have rough edges or produce false positives. The experimental tier and per-job isolation mean one bad tool doesn't contaminate others.
