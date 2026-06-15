@@ -5,7 +5,7 @@ A `CONTRIBUTING.md` SHALL exist at the repo root documenting prerequisites, loca
 
 #### Scenario: New contributor setting up locally
 - **WHEN** a contributor follows the steps in CONTRIBUTING.md
-- **THEN** they can run `just lint` successfully with no additional research required
+- **THEN** they can run `just lint` successfully with no additional research required; prerequisites listed SHALL include Node 24+, `just`, and (for experimental targets) Go and Python
 
 #### Scenario: Reproducing a failing CI job
 - **WHEN** a CI job fails and a contributor reads CONTRIBUTING.md
