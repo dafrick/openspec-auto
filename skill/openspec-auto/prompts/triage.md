@@ -16,6 +16,7 @@ Each row is `{ issue, title, body, updatedAt, labels, comments, agentPr }`, wher
 ## 2 — Resume first
 
 A row's agent PR is **resumable** when:
+
 - phase `NEEDS_INPUT` and a human answered — a comment newer than the agent's blocking-questions comment → resume at **Explore**;
 - a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`PROPOSAL_REVIEW`/`IMPLEMENT`/`CODE_REVIEW`) with `blocked: false` — a stalled run → resume there.
 
@@ -26,6 +27,7 @@ If any row is resumable, return `**Status:** RESUME` for the **most advanced** o
 ## 3 — Otherwise, select a new issue
 
 Consider only rows with no associated agent PR. Apply the three eligibility criteria (all must pass):
+
 - **Clarity** — enough to implement without human follow-up (bug: repro or observed-vs-expected; feature: desired behavior).
 - **No open questions** — no unanswered question from the author or a maintainer.
 - **Bounded scope** — self-contained; not a major architectural decision, cross-cutting rewrite, or new external dependency.

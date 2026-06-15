@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
+import { editPrBody } from "./pr-body.js";
 import { readState } from "./read-state.js";
 import { renderPrBlock } from "./sync-pr-state.js";
-import { editPrBody } from "./pr-body.js";
 
 /**
  * The closing-keyword footer. It must survive every body rewrite: GitHub's
@@ -40,7 +40,7 @@ export function writeDiscovery(
 if (import.meta.url === `file://${process.argv[1]}`) {
   const prNumber = parseInt(process.argv[2] ?? "", 10);
   const discoveryFile = process.argv[3];
-  if (isNaN(prNumber) || !discoveryFile) {
+  if (Number.isNaN(prNumber) || !discoveryFile) {
     console.error(
       "Usage: tsx scripts/write-discovery.ts <pr-number> <discovery-file>"
     );

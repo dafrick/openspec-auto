@@ -1,14 +1,18 @@
-import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, test } from "node:test";
 import { readConfig } from "./read-config.js";
 
 describe("read-config", () => {
   let tmp: string;
-  beforeEach(() => { tmp = mkdtempSync(join(tmpdir(), "osl-cfg-")); });
-  afterEach(() => { rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "osl-cfg-"));
+  });
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
 
   test("throws when config file is absent", () => {
     assert.throws(() => readConfig(tmp), /Config not found/);
@@ -20,7 +24,10 @@ describe("read-config", () => {
   });
 
   test("throws when reviewer field is missing", () => {
-    writeFileSync(join(tmp, ".openspec-auto.json"), JSON.stringify({ other: "value" }));
+    writeFileSync(
+      join(tmp, ".openspec-auto.json"),
+      JSON.stringify({ other: "value" })
+    );
     assert.throws(() => readConfig(tmp), /reviewer/);
   });
 
@@ -46,30 +53,43 @@ describe("read-config", () => {
 
 describe(".gitignore update logic", () => {
   let tmp: string;
-  beforeEach(() => { tmp = mkdtempSync(join(tmpdir(), "osl-cfg-")); });
-  afterEach(() => { rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "osl-cfg-"));
+  });
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
 
   test("adds .openspec-auto/ to .gitignore if missing", () => {
     writeFileSync(join(tmp, ".gitignore"), ".openspec-auto.json\n");
-    writeFileSync(join(tmp, ".openspec-auto.json"), JSON.stringify({ reviewer: "alice" }));
+    writeFileSync(
+      join(tmp, ".openspec-auto.json"),
+      JSON.stringify({ reviewer: "alice" })
+    );
     readConfig(tmp);
     const contents = readFileSync(join(tmp, ".gitignore"), "utf8");
     assert.ok(contents.includes(".openspec-auto/"));
   });
 
   test("does not duplicate .openspec-auto/ if already present", () => {
-    writeFileSync(join(tmp, ".gitignore"), ".openspec-auto.json\n.openspec-auto/\n");
-    writeFileSync(join(tmp, ".openspec-auto.json"), JSON.stringify({ reviewer: "alice" }));
+    writeFileSync(
+      join(tmp, ".gitignore"),
+      ".openspec-auto.json\n.openspec-auto/\n"
+    );
+    writeFileSync(
+      join(tmp, ".openspec-auto.json"),
+      JSON.stringify({ reviewer: "alice" })
+    );
     readConfig(tmp);
     const contents = readFileSync(join(tmp, ".gitignore"), "utf8");
-    assert.equal(
-      (contents.match(/\.openspec-auto\//g) ?? []).length,
-      1
-    );
+    assert.equal((contents.match(/\.openspec-auto\//g) ?? []).length, 1);
   });
 
   test("no .gitignore present — skips silently", () => {
-    writeFileSync(join(tmp, ".openspec-auto.json"), JSON.stringify({ reviewer: "alice" }));
+    writeFileSync(
+      join(tmp, ".openspec-auto.json"),
+      JSON.stringify({ reviewer: "alice" })
+    );
     assert.doesNotThrow(() => readConfig(tmp));
   });
 });

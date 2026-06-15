@@ -1,13 +1,19 @@
-import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { writeState } from "./write-state.js";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, test } from "node:test";
 import { readState } from "./read-state.js";
 import { renderPrBlock } from "./sync-pr-state.js";
-import { composePrBody } from "./write-discovery.js";
 import type { AgentState } from "./types.js";
+import { composePrBody } from "./write-discovery.js";
+import { writeState } from "./write-state.js";
 
 const VALID_STATE: AgentState = {
   phase: "IMPLEMENT",
@@ -21,8 +27,12 @@ const VALID_STATE: AgentState = {
 
 describe("write-state", () => {
   let tmp: string;
-  beforeEach(() => { tmp = mkdtempSync(join(tmpdir(), "osl-")); });
-  afterEach(() => { rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "osl-"));
+  });
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
 
   test("writes state.json with correct contents", () => {
     writeState(VALID_STATE, tmp);
@@ -43,9 +53,18 @@ describe("write-state", () => {
 
   test("does not write file on invalid phase", () => {
     const bad = { ...VALID_STATE, phase: "NOPE" } as unknown as AgentState;
-    try { writeState(bad, tmp); } catch { /* expected */ }
+    try {
+      writeState(bad, tmp);
+    } catch {
+      /* expected */
+    }
     let exists = false;
-    try { readFileSync(join(tmp, ".openspec-auto", "state.json")); exists = true; } catch { /* expected */ }
+    try {
+      readFileSync(join(tmp, ".openspec-auto", "state.json"));
+      exists = true;
+    } catch {
+      /* expected */
+    }
     assert.equal(exists, false);
   });
 
@@ -58,8 +77,12 @@ describe("write-state", () => {
 
 describe("read-state", () => {
   let tmp: string;
-  beforeEach(() => { tmp = mkdtempSync(join(tmpdir(), "osl-")); });
-  afterEach(() => { rmSync(tmp, { recursive: true, force: true }); });
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "osl-"));
+  });
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
 
   test("throws when state file is absent", () => {
     assert.throws(() => readState(tmp), /State file not found/);
@@ -103,7 +126,7 @@ describe("sync-pr-state / renderPrBlock", () => {
     assert.ok(block.includes("<!-- agent-state:"));
     const match = block.match(/<!-- agent-state: ({.*?}) -->/);
     assert.ok(match);
-    const parsed = JSON.parse(match![1]);
+    const parsed = JSON.parse(match?.[1]);
     assert.deepEqual(parsed, VALID_STATE);
   });
 

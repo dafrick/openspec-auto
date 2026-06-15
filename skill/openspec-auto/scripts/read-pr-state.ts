@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { parseAgentState } from "./survey.js";
-import { type AgentState } from "./types.js";
+import type { AgentState } from "./types.js";
 
 /**
  * Recover the full within-run state from a PR's durable agent-state marker.
@@ -44,7 +44,7 @@ export function readPrState(prNumber: number, cwd = process.cwd()): AgentState {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const prNumber = parseInt(process.argv[2] ?? "", 10);
-  if (isNaN(prNumber)) {
+  if (Number.isNaN(prNumber)) {
     console.error("Usage: tsx scripts/read-pr-state.ts <pr-number>");
     process.exit(1);
   }
