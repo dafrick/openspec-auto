@@ -77,4 +77,85 @@ describe("buildTable", () => {
     const rows = buildTable([issue({ number: 3 }) as never, issue({ number: 1 }) as never]);
     assert.deepEqual(rows.map((r) => r.issue), [3, 1]);
   });
+
+  test("issue with no PR and no comments → agentIssueState null", () => {
+    const rows = buildTable([issue() as never]);
+    assert.equal(rows[0].agentIssueState, null);
+  });
+
+  test("issue comment with agent-state marker → agentIssueState populated", () => {
+    const rows = buildTable([
+      issue({
+        comments: {
+          nodes: [
+            {
+              author: { login: "bot" },
+              createdAt: "2026-01-02T00:00:00Z",
+              body: marker({ phase: "NEEDS_INPUT", issue: 1, blocked: true }),
+            },
+          ],
+        },
+      }) as never,
+    ]);
+    assert.equal(rows[0].agentIssueState?.phase, "NEEDS_INPUT");
+    assert.equal(rows[0].agentIssueState?.blocked, true);
+    assert.equal(rows[0].agentPr, null);
+  });
+
+  test("agentPr takes precedence: agentIssueState is null when agentPr is non-null", () => {
+    const rows = buildTable([
+      issue({
+        comments: {
+          nodes: [
+            {
+              author: { login: "bot" },
+              createdAt: "2026-01-01T00:00:00Z",
+              body: marker({ phase: "NEEDS_INPUT", issue: 1, blocked: true }),
+            },
+          ],
+        },
+        closedByPullRequestsReferences: {
+          nodes: [
+            {
+              number: 5,
+              body: marker({ phase: "IMPLEMENT", issue: 1, blocked: false }),
+              comments: { nodes: [] },
+            },
+          ],
+        },
+      }) as never,
+    ]);
+    assert.equal(rows[0].agentPr?.phase, "IMPLEMENT");
+    assert.equal(rows[0].agentIssueState, null);
+  });
+
+  test("comment without agent-state marker → agentIssueState null", () => {
+    const rows = buildTable([
+      issue({
+        comments: {
+          nodes: [
+            {
+              author: { login: "alice" },
+              createdAt: "2026-01-02T00:00:00Z",
+              body: "Can you look at this?",
+            },
+          ],
+        },
+      }) as never,
+    ]);
+    assert.equal(rows[0].agentIssueState, null);
+  });
+
+  test("comment with no body field → agentIssueState null (no crash)", () => {
+    const rows = buildTable([
+      issue({
+        comments: {
+          nodes: [
+            { author: { login: "bot" }, createdAt: "2026-01-02T00:00:00Z" },
+          ],
+        },
+      }) as never,
+    ]);
+    assert.equal(rows[0].agentIssueState, null);
+  });
 });
