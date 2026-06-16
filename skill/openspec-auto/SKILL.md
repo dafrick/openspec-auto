@@ -19,14 +19,19 @@ Resolve one GitHub issue end-to-end, autonomously, with a full OpenSpec paper tr
 flowchart TD
     B[Bring-up] --> T[Triage]
 
-    T -->|RESUME| W[Workspace]
-    T -->|SELECTED| W
+    T -->|RESUME target:pr| W[Workspace]
+    T -->|RESUME target:issue| E[Explore]
+    T -->|SELECTED| E
     T -->|NO_ELIGIBLE / NEEDS_CONTEXT| Z[Teardown]
 
-    W -->|fresh / NEEDS_INPUT resume| E[Explore]
+    E -->|EXPLORED| W
+    E -->|NEEDS_INPUT pre-Workspace| Z
+
+    W -->|fresh| P[Propose]
     W -->|in-progress resume| RJ((continue at saved phase))
-    E -->|EXPLORED| P[Propose]
-    E -->|NEEDS_INPUT| Z
+    W -->|NEEDS_INPUT resume via pr| EX[Explore]
+    EX -->|EXPLORED| P
+    EX -->|NEEDS_INPUT| Z
 
     P -->|PROPOSED| PV[Proposal review]
     P -->|BLOCKED| Z
@@ -65,12 +70,15 @@ Every sub-agent returns a `**Status:**` line. Branch on it. An unrecognized stat
 
 | Sub-agent | Status | Action |
 |-----------|--------|--------|
-| triage    | `RESUME` | Read PR # and recorded phase → **Workspace** (resume), continue at that phase |
-| triage    | `SELECTED` | Read issue #, branch prefix, slug from prose → **Workspace** (fresh) |
+| triage    | `RESUME` (target: pr) | Read PR # and recorded phase → **Workspace** (resume), continue at that phase |
+| triage    | `RESUME` (target: issue) | Read issue # → re-dispatch **Explore** with prior dialogue as `{{PRIOR_CONTEXT}}`; no branch or PR yet |
+| triage    | `SELECTED` | Read issue #, branch prefix, slug → dispatch **Explore** against the bare issue |
 | triage    | `NO_ELIGIBLE` | Teardown, wake in 6h (idle) |
 | triage    | `NEEDS_CONTEXT` | GitHub unreachable / auth expired — Teardown, wake in 6h (loop-blocked) |
-| explore   | `EXPLORED` | Write discovery to the PR description → **Propose** |
-| explore   | `NEEDS_INPUT` | Write discovery to the PR description, post blocking questions as a PR comment, write `NEEDS_INPUT` + `blocked:true`, Teardown, wake in 30m (active) |
+| explore   | `EXPLORED` (pre-Workspace) | → **Workspace** (fresh); Workspace seeds the PR description with the discovery output |
+| explore   | `EXPLORED` (post-Workspace) | Write discovery to the PR description → **Propose** |
+| explore   | `NEEDS_INPUT` (pre-Workspace) | Post blocking questions as an issue comment with agent-state marker, Teardown, wake in 30m (active) |
+| explore   | `NEEDS_INPUT` (post-Workspace) | Write discovery to the PR description, post blocking questions as a PR comment, write `NEEDS_INPUT` + `blocked:true`, Teardown, wake in 30m (active) |
 | propose   | `PROPOSED` | Record the `changeName` from the sub-agent's output; write the proposal summary to the PR description → **Proposal review** |
 | propose   | `BLOCKED` | Write `blocked:true`, Teardown, wake in 30m (active) |
 | proposal-review | `APPROVED` | → **Implement** |
@@ -94,15 +102,15 @@ Reviews are stateless — `proposal-review` and `code-review` read the current s
 
 Each stage writes its phase to `state.json` and syncs it to the PR, then does its work. Sub-agent stages are dispatched with the `Agent` tool, the matching prompt template, and the model from **Model Selection**.
 
-**Bring-up.** Read `.openspec-auto.json` (reviewer, default branch). If it's missing or invalid, run `$OSL/node_modules/.bin/tsx $OSL/scripts/init.ts --yes` to auto-initialize: on exit 0, re-read the newly created config and proceed; on non-zero, surface the error output and stop. If the config is present and valid, read it directly. That's all — the loop reads no local state across runs; in-flight work is discovered by Triage from the open PRs.
+**Bring-up.** Read `.openspec-auto.json` (reviewer, default branch). If it's missing or invalid, run `$OSL/node_modules/.bin/tsx $OSL/scripts/init.ts --yes` to auto-initialize: on exit 0, re-read the newly created config and proceed; on non-zero, surface the error output and stop. If the config is present and valid, read it directly. Then ensure the `agent-investigating` label exists in the repo — run `gh label create agent-investigating --color "0075ca" --description "Agent is investigating this issue" --force` (the `--force` flag makes this idempotent: it updates if the label already exists). That's all — the loop reads no local state across runs; in-flight work is discovered by Triage from the open PRs and issue comments.
 
-**Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It builds an issue-keyed table (most-recently-updated first), joining each issue to its associated agent PR, and returns the single best next action: `RESUME` (the most-advanced in-flight PR, with its recorded phase), `SELECTED` (a new issue, with branch prefix + slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`. Resumable work takes precedence over new issues.
+**Triage.** Dispatch the triage sub-agent (`prompts/triage.md`). It builds an issue-keyed table (most-recently-updated first), joining each issue to its associated agent PR and checking issue comments for pre-Workspace agent-state markers, and returns the single best next action: `RESUME` (with `Target: pr #N` for in-flight PRs or `Target: issue #N` for pre-Workspace issues awaiting Explore), `SELECTED` (a new issue — go to **Explore**, not Workspace), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`. Resumable work takes precedence over new issues.
 
 **Workspace.** Ensure an isolated worktree exists for this issue's branch.
-- **Fresh** (from `SELECTED`): assemble the branch as `<prefix>/<issue>-<slug>` and run `setup-workspace.ts <issue> <branch> "<prefix>: <issue title>"` — it first guards against a duplicate by scanning open PRs' agent-state markers for this issue (a second opinion independent of triage's linked-PR graph; it aborts loudly if one already exists), then checks out the repo's default branch (from `.openspec-auto.json`), creates the branch, anchors an empty commit, opens the draft PR (titled per Conventional Commits), and writes the initial `state.json`. If the guard aborts, treat it like any setup failure — skip this issue and go to Teardown. Enter the worktree with `superpowers:using-git-worktrees`, then fetch the issue body and comments (`gh issue view <N> --json body,comments`) to hand to Explore.
-- **Resume** (from `RESUME`): the branch and PR already exist — do **not** recreate them. Recover the full prior state from the PR's agent-state marker with `read-pr-state.ts <PR>` — it prints the validated state JSON, including `branch` and `changeName`, which the triage survey does **not** surface (it only carries `phase`/`blocked`). Fetch and check out that `branch`, enter its worktree with `superpowers:using-git-worktrees`, then write the recovered state into the worktree with `write-state.ts '<that JSON>'`. Continue at the recorded phase: Explore for `WORKSPACE`/`EXPLORE`/answered `NEEDS_INPUT`; Propose for `PROPOSE`; Proposal review for `PROPOSAL_REVIEW`; Implement for `IMPLEMENT`; Code review for `CODE_REVIEW`. (`IN_REVIEW` is terminal — it is never resumed; see **Wrap up**.)
+- **Fresh** (from Explore returning `EXPLORED`): assemble the branch as `<prefix>/<issue>-<slug>` and run `setup-workspace.ts <issue> <branch> "<prefix>: <issue title>"` — it first guards against a duplicate by scanning open PRs' agent-state markers for this issue (a second opinion independent of triage's linked-PR graph; it aborts loudly if one already exists), then checks out the repo's default branch (from `.openspec-auto.json`), creates the branch, anchors an empty commit, opens the draft PR (titled per Conventional Commits), and writes the initial `state.json`. If the guard aborts, treat it like any setup failure — skip this issue and go to Teardown. Enter the worktree with `superpowers:using-git-worktrees`, then immediately call `write-discovery.ts <PR> <discovery-file>` to seed the new PR description with Explore's discovery output. Finally, remove the `agent-investigating` label from the issue (`gh issue edit <N> --remove-label agent-investigating`) — the PR is now the visible record.
+- **Resume** (from `RESUME` with `Target: pr #N`): the branch and PR already exist — do **not** recreate them. Recover the full prior state from the PR's agent-state marker with `read-pr-state.ts <PR>` — it prints the validated state JSON, including `branch` and `changeName`, which the triage survey does **not** surface (it only carries `phase`/`blocked`). Fetch and check out that `branch`, enter its worktree with `superpowers:using-git-worktrees`, then write the recovered state into the worktree with `write-state.ts '<that JSON>'`. Continue at the recorded phase: Explore for `WORKSPACE`/`EXPLORE`/answered `NEEDS_INPUT`; Propose for `PROPOSE`; Proposal review for `PROPOSAL_REVIEW`; Implement for `IMPLEMENT`; Code review for `CODE_REVIEW`. (`IN_REVIEW` is terminal — it is never resumed; see **Wrap up**.)
 
-**Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline; on a resume, also fill `{{PR_CONTEXT}}` with the PR description (prior discovery) and all PR comments. On return, write the discovery output into the PR description with `write-discovery.ts`. Then: `EXPLORED` → proceed to Propose; `NEEDS_INPUT` → post the blocking questions as a PR comment, write `NEEDS_INPUT` + `blocked:true`, and park (Teardown). `changeName` is still empty here — the change doesn't exist yet; **Propose** creates it and reports the name back, which you then record and pass to every stage from there on (`openspec/changes/<changeName>/`).
+**Explore.** Dispatch the explore sub-agent (`prompts/explore.md`) with the issue body and comments inline. On the first run (from `SELECTED` or `RESUME target:issue`) there is no worktree and no PR — Explore reads the repo via `{{REPO_PATH}}` but writes no files. Before dispatching, add the `agent-investigating` label to the issue (`gh issue edit <N> --add-label agent-investigating`). Fill `{{PRIOR_CONTEXT}}` with: nothing (first run), or the prior discovery output + issue comment dialogue (pre-Workspace resume), or the PR description + PR comments (post-Workspace resume). On return: `EXPLORED` → proceed to **Workspace** (fresh) or **Propose** (post-Workspace resume); `NEEDS_INPUT` → post the blocking questions as an issue comment (pre-Workspace) or a PR comment (post-Workspace), write the agent-state marker (`<!-- agent-state: {"phase":"NEEDS_INPUT","blocked":true,"issue":N} -->`), write `NEEDS_INPUT` + `blocked:true` to `state.json` if one exists, and park (Teardown). `changeName` is still empty here — the change doesn't exist yet; **Propose** creates it and reports the name back, which you then record and pass to every stage from there on (`openspec/changes/<changeName>/`).
 
 **Propose.** Dispatch the propose sub-agent (`prompts/propose.md`) with the issue ref, PR number, the **suggested change name** (the branch slug, so change and branch stay paired), and the discovery output. On the first run it creates the change with `opsx:propose`; on a rerun it edits the existing change. It commits and pushes the artifacts and returns the **actual `changeName`** in its `PROPOSED` output. On `PROPOSED`: **record that `changeName` in `state.json`** (the orchestrator owns it), then write the summary into the PR description with `write-discovery.ts` (overwriting the discovery — the description now reflects the post-proposal understanding) → **Proposal review**. `BLOCKED` → Teardown.
 
@@ -165,7 +173,8 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 
 ## Red Flags
 
-- **Never read local state across runs** — Bring-up reads only config; Triage discovers in-flight work from open PR markers; `state.json` is recreated each run and deleted at Teardown.
+- **Never read local state across runs** — Bring-up reads only config; Triage discovers in-flight work from open PR markers and issue comments; `state.json` is recreated each run and deleted at Teardown.
+- **Never create a branch or PR before Explore returns `EXPLORED`** — Explore runs against the bare issue; a codeless draft PR is never opened.
 - **Never resume a `CI_BLOCKED` or `IN_REVIEW` PR** — a human owns it. A `NEEDS_INPUT` PR is resumable once the human answers. `IN_REVIEW` is terminal: leave it for the human to merge; if they want something different they close it and the issue is retried fresh.
 - **Never recreate the branch/PR on resume** — the worktree was torn down, but the branch and PR persist; re-establish them (Workspace resume mode), don't run `setup-workspace.ts` again.
 - **Never skip Teardown** — it runs on every exit, including terminal stops.
