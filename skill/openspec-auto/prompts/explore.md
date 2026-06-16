@@ -53,4 +53,4 @@ or
 **Status:** NEEDS_INPUT
 ```
 
-End with a `## Blocking Questions` section — a numbered list when status is `NEEDS_INPUT`, or `(none)` otherwise. On `EXPLORED`, the orchestrator creates the Workspace and writes your discovery output into the new PR description. On `NEEDS_INPUT` before a PR exists, the orchestrator posts your blocking questions as an issue comment; on `NEEDS_INPUT` after a PR exists, it posts them as a PR comment.
+End with a `## Blocking Questions` section — a numbered list when status is `NEEDS_INPUT`, or `(none)` otherwise. (The orchestrator routes your output: on `EXPLORED` it creates the Workspace; on `NEEDS_INPUT` it posts your blocking questions to the issue if no PR exists yet, or to the PR comment thread if one does.)

@@ -106,6 +106,8 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
     // When no agent PR exists, check issue comments for a pre-Workspace agent-state
     // marker (posted by Explore-on-issue before a branch/PR has been created).
     // PR takes precedence: agentIssueState is always null when agentPr is non-null.
+    // Uses the first (oldest) matching comment — acceptable because all pre-Workspace
+    // markers carry phase:NEEDS_INPUT/blocked:true; the values are never differentiated.
     let agentIssueState: { phase: Phase; blocked: boolean } | null = null;
     if (agentPr === null) {
       for (const comment of iss.comments.nodes) {
