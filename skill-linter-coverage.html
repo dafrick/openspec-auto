@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Linter Coverage Analysis</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f8f8f8;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      color: #111;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 2.5rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 2.5rem 0 1rem;
+      color: #111;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 0.4rem;
+    }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 1.75rem 0 0.6rem;
+      color: #333;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      color: #555;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      width: fit-content;
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+      font-size: 0.82rem;
+    }
+
+    thead th {
+      background: #1e293b;
+      color: #f1f5f9;
+      font-weight: 600;
+      padding: 0.55rem 0.75rem;
+      text-align: center;
+      white-space: nowrap;
+      border: 1px solid #334155;
+    }
+
+    thead th:first-child {
+      text-align: left;
+      min-width: 280px;
+    }
+
+    tbody td {
+      padding: 0.45rem 0.75rem;
+      border: 1px solid #e5e7eb;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    tbody td:first-child {
+      text-align: left;
+      font-size: 0.8rem;
+      color: #374151;
+    }
+
+    tbody tr:nth-child(even) { background: #f9fafb; }
+    tbody tr:hover { background: #eff6ff; }
+
+    .cover    { color: #16a34a; font-size: 1.1rem; }
+    .partial  { color: #d97706; font-size: 1.1rem; }
+    .no-cover { color: #d1d5db; font-size: 1rem; }
+
+    /* Per-tool summary table */
+    .summary-table thead th { min-width: 120px; }
+    .summary-table thead th:first-child { min-width: 140px; }
+    .summary-table thead th:nth-child(2) { min-width: 260px; text-align: left; }
+    .summary-table thead th:nth-child(3) { min-width: 200px; text-align: left; }
+    .summary-table thead th:nth-child(4) { min-width: 220px; text-align: left; }
+    .summary-table thead th:nth-child(5) { min-width: 140px; text-align: left; }
+
+    .summary-table td { text-align: left; vertical-align: top; }
+    .summary-table td:first-child { font-weight: 600; white-space: nowrap; }
+
+    .signal-high   { color: #15803d; font-weight: 600; }
+    .signal-medium { color: #b45309; font-weight: 600; }
+    .signal-low    { color: #991b1b; font-weight: 600; }
+
+    /* Gaps section */
+    .gaps {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .gaps ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .gaps ul li {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      gap: 0.6rem;
+      align-items: baseline;
+      font-size: 0.85rem;
+    }
+
+    .gaps ul li:last-child { border-bottom: none; }
+
+    .gaps ul li::before {
+      content: "◆";
+      color: #9ca3af;
+      font-size: 0.6rem;
+      flex-shrink: 0;
+      margin-top: 0.3rem;
+    }
+
+    code {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+      background: #f3f4f6;
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      font-size: 0.85em;
+      color: #1d4ed8;
+    }
+
+    .tool-label {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      background: #e0e7ff;
+      color: #3730a3;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Skill Linter Coverage Analysis</h1>
+<p class="subtitle">openspec-auto &mdash; experimental linter evaluation &mdash; 2026-06-15</p>
+
+<div class="legend">
+  <span class="legend-item"><span class="cover">✅</span> Covers</span>
+  <span class="legend-item"><span class="partial">⚠️</span> Partial / related</span>
+  <span class="legend-item"><span class="no-cover">❌</span> Doesn&rsquo;t cover</span>
+</div>
+
+<h2>Coverage Matrix</h2>
+
+<!-- ─── A. Schema & Structure ─────────────────────────────────── -->
+<h3>A. Schema &amp; Structure</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>quick_validate</th>
+        <th>skill-lint</th>
+        <th>agent-skills-lint</th>
+        <th>skill-check</th>
+        <th>pulser</th>
+        <th>cclint</th>
+        <th>agnix</th>
+        <th>skillscan-lint</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>SKILL.md</code> exists</td>
+        <td class="cover">✅</td><td class="cover">✅</td><td class="cover">✅</td>
+        <td class="cover">✅</td><td class="cover">✅</td><td class="cover">✅</td>
+        <td class="cover">✅</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Valid YAML frontmatter present</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="cover">✅</td>
+        <td class="cover">✅</td><td class="partial">⚠️</td><td class="partial">⚠️</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td><code>name</code> format: kebab-case, &le;64 chars, no consecutive hyphens</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="cover">✅</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td><code>description</code> field: length limit, no angle brackets</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="cover">✅</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>No unexpected / disallowed frontmatter keys</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td><code>name</code> matches directory slug</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>File ends with exactly one trailing newline</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Body / directory size limits</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="partial">⚠️&nbsp;<small>lines&nbsp;/&nbsp;tokens</small></td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="partial">⚠️&nbsp;<small>dir bytes</small></td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Local Markdown links resolve</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td><code>references/</code> links resolve within skill directory</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── B. Description Quality ───────────────────────────────── -->
+<h3>B. Description Quality</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>quick_validate</th>
+        <th>skill-lint</th>
+        <th>agent-skills-lint</th>
+        <th>skill-check</th>
+        <th>pulser</th>
+        <th>cclint</th>
+        <th>agnix</th>
+        <th>skillscan-lint</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>&ldquo;Use when&rdquo; / trigger phrasing present</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="cover">✅</td><td class="cover">✅</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Description non-empty, meets minimum length</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="cover">✅</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── C. Documentation Completeness ───────────────────────── -->
+<h3>C. Documentation Completeness</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>quick_validate</th>
+        <th>skill-lint</th>
+        <th>agent-skills-lint</th>
+        <th>skill-check</th>
+        <th>pulser</th>
+        <th>cclint</th>
+        <th>agnix</th>
+        <th>skillscan-lint</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>allowed-tools</code> frontmatter field</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td><code>version</code> frontmatter field</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td><code>tags</code> frontmatter field</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td><code>## Examples</code> / <code>examples:</code> section</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="cover">✅</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td><code>## Gotchas</code> / <code>## Anti-Patterns</code> section</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="cover">✅</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td><code>## Inputs</code> / <code>## Outputs</code> sections</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td><code>## When to Use</code> section</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td><code>## Prerequisites</code> section</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Changelog / <code>updated</code> field</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Quality score / grade output</td>
+        <td class="no-cover">❌</td>
+        <td class="partial">⚠️&nbsp;<small>security score</small></td>
+        <td class="no-cover">❌</td>
+        <td class="cover">✅&nbsp;<small>85/100</small></td>
+        <td class="cover">✅&nbsp;<small>75/100</small></td>
+        <td class="cover">✅&nbsp;<small>38/100&nbsp;D</small></td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── D. Security ──────────────────────────────────────────── -->
+<h3>D. Security</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>quick_validate</th>
+        <th>skill-lint</th>
+        <th>agent-skills-lint</th>
+        <th>skill-check</th>
+        <th>pulser</th>
+        <th>cclint</th>
+        <th>agnix</th>
+        <th>skillscan-lint</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Prompt injection / jailbreak patterns (DAN, role override, INST tokens)</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Obfuscation: base64, long hex sequences, zero-width chars, Cyrillic homoglyphs</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Shell RCE: <code>curl|sh</code>, <code>eval</code>, <code>bash&nbsp;&lt;(curl)</code>, <code>nc&nbsp;-e</code>, fork bomb</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Credential exfiltration: API keys sent to untrusted hosts</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>External fetches to untrusted hosts, dynamic <code>import(fetch(...))</code></td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Persistence tampering: writes to <code>~/.claude</code>, shell rc, hooks, crontab, SSH</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Destructive operations: <code>rm&nbsp;-rf&nbsp;/</code>, <code>mkfs</code>, <code>dd if=/dev/zero</code></td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Metadata abuse: Anthropic impersonation, fake &ldquo;official&rdquo; / &ldquo;verified&rdquo; claims</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Overbroad auto-trigger: &ldquo;always activate&rdquo;, &ldquo;on every message&rdquo;</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Over-privilege: <code>--dangerously-skip-permissions</code>, arbitrary command execution, <code>sudo</code></td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Suspicious bundled executables: <code>.ts</code>, <code>.sh</code>, <code>.exe</code>, <code>.py</code>, <code>.wasm</code>, binaries</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── E. Portability ───────────────────────────────────────── -->
+<h3>E. Portability</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>quick_validate</th>
+        <th>skill-lint</th>
+        <th>agent-skills-lint</th>
+        <th>skill-check</th>
+        <th>pulser</th>
+        <th>cclint</th>
+        <th>agnix</th>
+        <th>skillscan-lint</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Hardcoded user directory paths (<code>/Users/</code>, <code>C:\Users\</code>, <code>/home/</code>)</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Skill directory total size limit</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Cross-platform shebangs and path separators</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td>
+      </tr>
+      <tr>
+        <td>Tool / spec version pinning</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="cover">✅</td><td class="no-cover">❌</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── F. Writing Quality ───────────────────────────────────── -->
+<h3>F. Writing Quality</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>quick_validate</th>
+        <th>skill-lint</th>
+        <th>agent-skills-lint</th>
+        <th>skill-check</th>
+        <th>pulser</th>
+        <th>cclint</th>
+        <th>agnix</th>
+        <th>skillscan-lint</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Sentence length (max 30 words)</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Passive voice detection</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Unsubstantiated superlatives: &ldquo;best&rdquo;, &ldquo;most capable&rdquo;</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Weasel intensifiers: &ldquo;actually&rdquo;, &ldquo;really&rdquo;</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Nominalisations (prefer active verbs)</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+      <tr>
+        <td>Acronym definitions (first-use expansion)</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="no-cover">❌</td><td class="no-cover">❌</td>
+        <td class="no-cover">❌</td><td class="cover">✅</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── Per-tool summary ─────────────────────────────────────── -->
+<h2>Per-Tool Summary</h2>
+<div class="table-wrap">
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Unique coverage</th>
+        <th>Overlaps with</th>
+        <th>False-positive problem</th>
+        <th>Signal quality</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>quick_validate</td>
+        <td>Only tool that enforces the <strong>allowed frontmatter key list</strong> (rejects unknown keys). Authoritative Anthropic validator.</td>
+        <td>Schema checks (name, description, SKILL.md) shared with <span class="tool-label">skill-check</span> and <span class="tool-label">agent-skills-lint</span></td>
+        <td>None observed.</td>
+        <td class="signal-high">High</td>
+      </tr>
+      <tr>
+        <td>skill-lint</td>
+        <td><strong>Sole security scanner.</strong> Covers all 10+ security rule categories: prompt injection, obfuscation, RCE, credential exfil, external fetches, persistence tampering, destructive ops, metadata abuse, overbroad triggers, over-privilege, suspicious executables. Nothing else touches any of these.</td>
+        <td>Nothing overlaps its security coverage.</td>
+        <td><strong>R06 fires categorically on every <code>.ts</code> file</strong>, regardless of content. TOXIC verdict (score 17) is entirely driven by having a <code>scripts/</code> directory with TypeScript. Rules R01&ndash;R05 and R07&ndash;R10 found nothing because the actual content is clean.</td>
+        <td class="signal-high">High <em>(unique category)</em><br><span style="font-weight:400;color:#991b1b">but noisy for skills with scripts</span></td>
+      </tr>
+      <tr>
+        <td>agent-skills-lint</td>
+        <td>Supports 15+ agent flavors (Cursor, Codex, OpenCode, Aider, Gemini, Kiro, etc.) via flavor-specific schemas. Useful when validating cross-agent portability.</td>
+        <td>All schema checks (name, description validation) fully covered by <span class="tool-label">quick_validate</span> and <span class="tool-label">skill-check</span> for Claude Code specifically.</td>
+        <td><strong>Treats every <code>.md</code> file in the skill directory as a skill file.</strong> Our <code>prompts/*.md</code> templates have no <code>name:</code> frontmatter &rarr; 6 false-positive errors. The tool does not understand the distinction between a <code>SKILL.md</code> and prompt template files.</td>
+        <td class="signal-low">Low</td>
+      </tr>
+      <tr>
+        <td>skill-check</td>
+        <td><strong>Deepest structural checker.</strong> Uniquely covers: <code>name</code> matches directory slug; file trailing newline; body line and token limits; local Markdown link resolution; <code>references/</code> link resolution. Also the most configurable (plugin rules, allowlists).</td>
+        <td>Frontmatter schema overlaps <span class="tool-label">quick_validate</span> + <span class="tool-label">agent-skills-lint</span>. &ldquo;Use when&rdquo; trigger phrase overlaps <span class="tool-label">pulser</span> + <span class="tool-label">cclint</span>.</td>
+        <td>None observed.</td>
+        <td class="signal-high">High</td>
+      </tr>
+      <tr>
+        <td>pulser</td>
+        <td><strong>Only tool checking <code>allowed-tools</code></strong> frontmatter field. Also checks skill classification (generation vs. analysis) and produces a score with structured prescriptions. Unique <code>## Gotchas</code> section check (shared only with cclint).</td>
+        <td>&ldquo;Use when&rdquo; trigger phrase overlaps <span class="tool-label">skill-check</span> + <span class="tool-label">cclint</span>. Gotchas check overlaps <span class="tool-label">cclint</span>.</td>
+        <td>None observed.</td>
+        <td class="signal-medium">Medium</td>
+      </tr>
+      <tr>
+        <td>cclint</td>
+        <td>Claude Code&ndash;specific quality scoring with a <strong>four-dimension breakdown</strong> (Structural / Practices / Composition / Documentation, 0&ndash;100). Checks for <code>## Anti-Patterns</code>, <code>## Quick Reference</code>, <code>## Workflow</code>, <code>## Success Criteria</code> sections. Unique &ldquo;Practices&rdquo; dimension covers idiomatic Claude Code skill conventions not checked elsewhere. Supports circular dependency detection and baseline filtering.</td>
+        <td>&ldquo;Use when&rdquo; trigger overlaps <span class="tool-label">skill-check</span> + <span class="tool-label">pulser</span>. <code>## Examples</code> check overlaps <span class="tool-label">skillscan-lint</span>. Gotchas/Anti-Patterns overlaps <span class="tool-label">pulser</span>.</td>
+        <td>None observed. All findings were at SUGGESTION level (not errors or warnings); scored 38/100 (D), which is a meaningful signal about documentation completeness.</td>
+        <td class="signal-medium">Medium</td>
+      </tr>
+      <tr>
+        <td>agnix</td>
+        <td><strong>Only tool checking portability:</strong> hardcoded user directory paths, skill directory size limit, cross-platform shebangs, tool/spec version pinning. Supports multi-target validation (claude-code, cursor, codex, kiro) and SARIF output format.</td>
+        <td>Nothing else checks portability.</td>
+        <td><strong>Scans <code>node_modules/</code> without excluding it.</strong> All 9 hardcoded-path warnings were in <code>@types/node</code> and <code>typescript</code> upstream packages, not our code. The 8MB size error is triggered by <code>node_modules/</code> being counted in the directory size. The portability checks themselves are genuinely unique and valuable &mdash; they just need <code>node_modules/</code> excluded.</td>
+        <td class="signal-low">Low <em>(currently)</em><br><span style="font-weight:400;color:#b45309">due to node_modules false positives;<br>checks are uniquely valuable in principle</span></td>
+      </tr>
+      <tr>
+        <td>skillscan-lint</td>
+        <td><strong>Only tool checking prose quality:</strong> sentence length, passive voice, superlatives, weasel words, nominalisations, acronym definitions. Also the most comprehensive <em>documentation completeness</em> checker: <code>## Inputs</code> / <code>## Outputs</code>, <code>## When to Use</code>, <code>## Prerequisites</code>, <code>version:</code>, <code>tags:</code>, <code>changelog:</code> &mdash; none of which any other tool checks.</td>
+        <td><code>## Examples</code> check overlaps <span class="tool-label">cclint</span>.</td>
+        <td><strong>Sentence-length rule (QL-002) does not understand Markdown structure.</strong> Tables, code blocks, and Mermaid diagrams are parsed as prose sentences &mdash; 18 of 18 QL-002 warnings are false positives from these elements (e.g. a table row counted as a 268-word &ldquo;sentence&rdquo;). The prose-quality rules that fired on actual text content (superlatives, weasel words, acronyms) are real findings.</td>
+        <td class="signal-medium">Medium<br><span style="font-weight:400;color:#b45309">prose rules poorly suited to agent<br>skill files; doc-completeness checks<br>are real but opinionated</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── Coverage Gaps ────────────────────────────────────────── -->
+<h2>Coverage Gaps &mdash; Nothing Checks These</h2>
+<div class="gaps">
+  <ul>
+    <li>Content of TypeScript / JavaScript scripts beyond categorical file-type detection &mdash; no tool reads the actual logic, call graphs, or external dependencies of <code>scripts/*.ts</code></li>
+    <li>Prompt template correctness &mdash; no tool checks that <code>{{PLACEHOLDERS}}</code> are consistent between the orchestrating skill and the templates it fills, or that templates are structurally complete</li>
+    <li>Inter-skill dependencies &mdash; no tool validates that skills referenced in <code>SKILL.md</code> (e.g. via <code>superpowers:using-git-worktrees</code>) actually exist in the installation</li>
+    <li>Runtime / behavioral testing &mdash; no tool invokes the skill against synthetic inputs to verify it behaves as documented</li>
+  </ul>
+</div>
+
+</body>
+</html>
