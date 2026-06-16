@@ -23,7 +23,7 @@ Not resumable: `CI_BLOCKED` (a human owns it) and `IN_REVIEW` (the agent's work 
 
 **Pre-Workspace resume** — a row where `agentPr` is null but `agentIssueState` has `phase: "NEEDS_INPUT"` and `blocked: true` is resumable when a non-agent issue comment is newer than the agent's blocking-questions comment (i.e., the human answered on the issue). Resume by re-dispatching **Explore** with the prior dialogue — no branch or PR exists yet.
 
-If any row is resumable (PR-based or pre-Workspace), return `**Status:** RESUME` for the **most advanced** one. Do not look at new issues.
+If any row is resumable (PR-based or pre-Workspace), return `**Status:** RESUME` for the **most advanced** one. PR-based work is always considered more advanced than pre-Workspace issue work — prefer a resumable PR over a resumable pre-Workspace issue when both exist. Do not look at new issues.
 
 ## 3 — Otherwise, select a new issue
 
@@ -45,8 +45,10 @@ Reject an issue (return `NO_ELIGIBLE`) **only** when one of these signals is dir
 
 ```
 **Status:** RESUME
-Target: pr #<PR> | issue #<N>
-Phase: <recorded phase>  (omit for pre-Workspace issue resumes — phase is always NEEDS_INPUT)
+Target: pr #<PR>          ← use this form for a PR-based resume
+  — or —
+Target: issue #<N>        ← use this form for a pre-Workspace issue resume (no PR exists yet)
+Phase: <recorded phase>   ← omit for pre-Workspace issue resumes (phase is always NEEDS_INPUT)
 <why this is resumable — e.g. a NEEDS_INPUT PR with a human answer, a stalled non-terminal phase, or a pre-Workspace issue with a human reply on the issue>
 ```
 
