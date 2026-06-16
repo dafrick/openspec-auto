@@ -25,12 +25,19 @@ If any row is resumable, return `**Status:** RESUME` for the **most advanced** o
 
 ## 3 — Otherwise, select a new issue
 
-Consider only rows with no associated agent PR. Apply the three eligibility criteria (all must pass):
-- **Clarity** — enough to implement without human follow-up (bug: repro or observed-vs-expected; feature: desired behavior).
-- **No open questions** — no unanswered question from the author or a maintainer.
-- **Bounded scope** — self-contained; not a major architectural decision, cross-cutting rewrite, or new external dependency.
+Consider only rows with no associated agent PR. All such issues are **eligible by default** — select the best one unless a **Red Flag** (see below) is directly observable from the issue's title, body, labels, and comments. Do not investigate to reach a verdict.
 
-From the eligible rows, pick the best: prefer more-recently-updated, higher-impact, lower-effort (bugs with clear repro over vague features; smaller, targeted changes; `bug` / `good first issue` labels).
+From eligible rows, pick the best: prefer more-recently-updated, higher-impact, lower-effort (bugs with clear repro over vague features; smaller, targeted changes; `bug` / `good first issue` labels).
+
+## Red Flags
+
+Reject an issue (return `NO_ELIGIBLE`) **only** when one of these signals is directly observable from the title, body, labels, and comments — no investigation required:
+
+1. **No observable ask** — the title and body together contain no discernible problem or desired behavior.
+2. **Confirmed duplicate** — the issue body or a maintainer comment explicitly names a canonical duplicate issue.
+3. **Out of scope** — the issue or a maintainer comment explicitly states it belongs to a different repository or product.
+
+**You MUST NOT** check external resources (registries, URLs, linked code), evaluate technical feasibility, or reach a verdict that requires reasoning beyond a literal read of the issue surface. This is the "no design judgment" mandate from SKILL.md's Model Selection table: triage is a mechanical fetch-and-filter step. If you cannot name one of the three flags above from the issue text, the issue is eligible — do not reject it. Ambiguous or vague issues belong to Explore; triage surfaces them, it does not judge them.
 
 ## Output
 
@@ -52,7 +59,8 @@ Branch slug: <3-5-word-kebab-slug-from-title>
 
 ```
 **Status:** NO_ELIGIBLE
-<what was checked, why nothing passed>
+Red flag: <flag name> — <one-line observation from the issue surface, e.g. "Confirmed duplicate — maintainer comment names #8 as the canonical issue">
+<summary of what was checked and why each issue was rejected>
 ```
 
 ```
