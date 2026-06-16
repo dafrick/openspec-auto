@@ -11,21 +11,23 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/survey.ts
 
 If it exits non-zero from a `gh` auth or rate-limit error, return `**Status:** NEEDS_CONTEXT`.
 
-Each row is `{ issue, title, body, updatedAt, labels, comments, agentPr }`, where `agentPr` is `{ number, phase, blocked, comments }` or `null`. The issue is the entry point; `agentPr` is how in-flight work is discovered. An issue *with* an agent PR is never a new-work candidate — it is resumed or skipped, which is why there's no separate dedup step.
+Each row is `{ issue, title, body, updatedAt, labels, comments, agentPr, agentIssueState }`, where `agentPr` is `{ number, phase, blocked, comments }` or `null`, and `agentIssueState` is `{ phase, blocked }` or `null`. `agentPr` is how in-flight PR-based work is discovered; `agentIssueState` carries a pre-Workspace agent marker found in the issue's own comments (when `agentPr` is null). An issue *with* an agent PR is never a new-work candidate — it is resumed or skipped, which is why there's no separate dedup step.
 
 ## 2 — Resume first
 
-A row's agent PR is **resumable** when:
+**PR-based resume** — a row's `agentPr` is resumable when:
 - phase `NEEDS_INPUT` and a human answered — a comment newer than the agent's blocking-questions comment → resume at **Explore**;
 - a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`PROPOSAL_REVIEW`/`IMPLEMENT`/`CODE_REVIEW`) with `blocked: false` — a stalled run → resume there.
 
 Not resumable: `CI_BLOCKED` (a human owns it) and `IN_REVIEW` (the agent's work is done — the PR awaits the human's merge; the agent does not respond to review). If the human wants a different solution they close the PR, and **closed PRs are excluded from the survey entirely** — so an issue whose only agent attempt was closed shows `agentPr: null` and is eligible as fresh work again.
 
-If any row is resumable, return `**Status:** RESUME` for the **most advanced** one. Do not look at new issues.
+**Pre-Workspace resume** — a row where `agentPr` is null but `agentIssueState` has `phase: "NEEDS_INPUT"` and `blocked: true` is resumable when a non-agent issue comment is newer than the agent's blocking-questions comment (i.e., the human answered on the issue). Resume by re-dispatching **Explore** with the prior dialogue — no branch or PR exists yet.
+
+If any row is resumable (PR-based or pre-Workspace), return `**Status:** RESUME` for the **most advanced** one. Do not look at new issues.
 
 ## 3 — Otherwise, select a new issue
 
-Consider only rows with no associated agent PR. All such issues are **eligible by default** — select the best one unless a **Red Flag** (see below) is directly observable from the issue's title, body, labels, and comments. Do not investigate to reach a verdict.
+Consider only rows where `agentPr` is null **and** `agentIssueState` is null. Issues where `agentIssueState` is non-null but not yet resumable (the agent has asked a blocking question on the issue and no human has replied) are neither resumable nor fresh-work candidates — skip them. All remaining issues are **eligible by default** — select the best one unless a **Red Flag** (see below) is directly observable from the issue's title, body, labels, and comments. Do not investigate to reach a verdict.
 
 From eligible rows, pick the best: prefer more-recently-updated, higher-impact, lower-effort (bugs with clear repro over vague features; smaller, targeted changes; `bug` / `good first issue` labels).
 
@@ -43,10 +45,9 @@ Reject an issue (return `NO_ELIGIBLE`) **only** when one of these signals is dir
 
 ```
 **Status:** RESUME
-PR: #<PR>
-Phase: <recorded phase>
-<why this PR is resumable — e.g. a NEEDS_INPUT PR with a human answer newer than
-the blocking-questions comment, or a stalled non-terminal phase>
+Target: pr #<PR> | issue #<N>
+Phase: <recorded phase>  (omit for pre-Workspace issue resumes — phase is always NEEDS_INPUT)
+<why this is resumable — e.g. a NEEDS_INPUT PR with a human answer, a stalled non-terminal phase, or a pre-Workspace issue with a human reply on the issue>
 ```
 
 ```
@@ -68,4 +69,4 @@ Red flag: <flag name> — <one-line observation from the issue surface, e.g. "Co
 <which command failed and why>
 ```
 
-The orchestrator reads the status: `RESUME` (re-establish that PR's workspace, continue at the recorded phase), `SELECTED` (read issue number, prefix, slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`.
+The orchestrator reads the status: `RESUME` (read `Target:` — `pr #N` means re-establish the PR's workspace and continue at the recorded phase; `issue #N` means re-dispatch Explore against the issue with prior dialogue), `SELECTED` (read issue number, prefix, slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`.

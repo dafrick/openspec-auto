@@ -9,9 +9,9 @@ Issue #{{ISSUE}}: {{TITLE}}
 Comments:
 {{ISSUE_COMMENTS}}
 
-{{PR_CONTEXT}}
+{{PRIOR_CONTEXT}}
 
-`{{PR_CONTEXT}}` is empty on the first run. On a resume it holds the previous discovery output (from the PR description) and the dialogue (the blocking questions you asked and the human's answers). Treat the human's answers as authoritative and fold them into a fresh discovery output.
+`{{PRIOR_CONTEXT}}` is empty on the first run. On a **pre-Workspace resume** (the agent posted blocking questions to the issue before a branch/PR existed) it holds the prior discovery output and the issue comment dialogue (the blocking questions you asked and the human's answers). On a **post-Workspace resume** (a PR already exists) it holds the prior discovery output from the PR description and the PR comment dialogue. In both cases, treat the human's answers as authoritative and fold them into a fresh discovery output.
 
 ## 1 — Classify
 
@@ -53,4 +53,4 @@ or
 **Status:** NEEDS_INPUT
 ```
 
-End with a `## Blocking Questions` section — a numbered list when status is `NEEDS_INPUT`, or `(none)` otherwise. The orchestrator writes your discovery output into the PR description and, on `NEEDS_INPUT`, posts the blocking questions as a PR comment.
+End with a `## Blocking Questions` section — a numbered list when status is `NEEDS_INPUT`, or `(none)` otherwise. On `EXPLORED`, the orchestrator creates the Workspace and writes your discovery output into the new PR description. On `NEEDS_INPUT` before a PR exists, the orchestrator posts your blocking questions as an issue comment; on `NEEDS_INPUT` after a PR exists, it posts them as a PR comment.

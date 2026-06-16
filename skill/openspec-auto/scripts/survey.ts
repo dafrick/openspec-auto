@@ -35,6 +35,7 @@ export interface SurveyRow {
   labels: string[];
   comments: SurveyComment[];
   agentPr: AgentPr | null;
+  agentIssueState: { phase: Phase; blocked: boolean } | null;
 }
 
 /** Extract and validate the agent-state marker from a PR body, or null. */
@@ -102,6 +103,19 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
         break;
       }
     }
+    // When no agent PR exists, check issue comments for a pre-Workspace agent-state
+    // marker (posted by Explore-on-issue before a branch/PR has been created).
+    // PR takes precedence: agentIssueState is always null when agentPr is non-null.
+    let agentIssueState: { phase: Phase; blocked: boolean } | null = null;
+    if (agentPr === null) {
+      for (const comment of iss.comments.nodes) {
+        const state = comment.body ? parseAgentState(comment.body) : null;
+        if (state) {
+          agentIssueState = { phase: state.phase, blocked: state.blocked };
+          break;
+        }
+      }
+    }
     return {
       issue: iss.number,
       title: iss.title,
@@ -110,6 +124,7 @@ export function buildTable(issues: GqlIssue[]): SurveyRow[] {
       labels: iss.labels.nodes.map((l) => l.name),
       comments: mapComments(iss.comments.nodes),
       agentPr,
+      agentIssueState,
     };
   });
 }
