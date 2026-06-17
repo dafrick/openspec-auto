@@ -16,6 +16,7 @@ Each row is `{ issue, title, body, updatedAt, labels, comments, agentPr, agentIs
 ## 2 — Resume first
 
 **PR-based resume** — a row's `agentPr` is resumable when:
+
 - phase `NEEDS_INPUT` and a human answered — a comment newer than the agent's blocking-questions comment → resume at **Explore**;
 - a non-terminal phase (`WORKSPACE`/`EXPLORE`/`PROPOSE`/`PROPOSAL_REVIEW`/`IMPLEMENT`/`CODE_REVIEW`) with `blocked: false` — a stalled run → resume there.
 
