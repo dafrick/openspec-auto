@@ -52,6 +52,17 @@ jobs:
       - run: npm ci
       - run: just lint-md
 
+  lint-secrets:
+    name: lint-secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # ── Experimental skill linters (non-blocking) ────────────────────────────
 
   lint-quick-validate:
@@ -77,18 +88,6 @@ jobs:
           node-version: "24"
       - uses: extractions/setup-just@v2
       - run: just lint-agent-skills-lint
-
-  lint-skill-check:
-    name: lint-skill-check
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-      - uses: extractions/setup-just@v2
-      - run: just lint-skill-check
 
   lint-pulser:
     name: lint-pulser
