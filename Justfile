@@ -14,9 +14,9 @@ lint: typecheck lint-scripts lint-md
 # Experimental skill linters (non-blocking CI)
 
 lint-quick-validate:
-    python3 -c "import urllib.request, os, sys; \
-        url='https://raw.githubusercontent.com/anthropics/skills/main/skills/skill-creator/scripts/quick_validate.py'; \
-        exec(urllib.request.urlopen(url).read().decode())" skill/openspec-auto
+    git clone --depth 1 https://github.com/anthropics/skills.git /tmp/anthropics-skills
+    git -C /tmp/anthropics-skills checkout 57546260929473d4e0d1c1bb75297be2fdfa1949
+    python3 /tmp/anthropics-skills/skills/skill-creator/scripts/quick_validate.py skill/openspec-auto
 
 lint-skill-lint:
     npx -y skill-lint skill/openspec-auto

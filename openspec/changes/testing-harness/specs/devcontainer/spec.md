@@ -5,7 +5,7 @@ A `.devcontainer/devcontainer.json` SHALL exist using an off-the-shelf base imag
 
 #### Scenario: Opening the repo in a dev container
 - **WHEN** a contributor opens the repo in VS Code Dev Containers or GitHub Codespaces
-- **THEN** the container starts with Node 22, Go, Python 3, and `just` available without any manual installation steps
+- **THEN** the container starts with Node 24, Go, Python 3, and `just` available without any manual installation steps
 
 #### Scenario: npm dependencies installed automatically
 - **WHEN** the dev container finishes creating
