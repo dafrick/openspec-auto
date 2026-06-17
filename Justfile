@@ -26,7 +26,7 @@ lint-agent-skills-lint:
     npx -y @swarmclawai/agent-skills-lint lint skill/openspec-auto
 
 lint-skill-check:
-    npx -y skill-check skill/openspec-auto --security-scan-skills skill/openspec-auto --allow-installs
+    npx -y skill-check ${SKILL_CHECK_TARGET:-skill/openspec-auto} --allow-installs
 
 lint-pulser:
     npx -y pulser-cli skill/ --format json

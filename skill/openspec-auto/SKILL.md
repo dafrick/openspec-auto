@@ -1,7 +1,7 @@
 ---
 name: openspec-auto
 description: Use when you want to autonomously resolve one GitHub issue end-to-end — triage, explore, propose, implement test-first, review, and hand off a ready PR — with a full OpenSpec paper trail. Invoke via /loop so it resumes across iterations.
-allowed-tools: Bash, Read, Edit, Agent, Skill, EnterWorktree, ExitWorktree, ScheduleWakeup
+allowed-tools: Bash(git:*) Bash(gh:*) Bash(npm:*) Bash(npx:*) Bash(tsx:*) Read Edit Agent Skill EnterWorktree ExitWorktree ScheduleWakeup
 ---
 
 # openspec-auto
