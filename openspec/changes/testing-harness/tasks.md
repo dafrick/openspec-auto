@@ -18,16 +18,16 @@
 
 ## 4. Justfile
 
-- [x] 4.1 Create `Justfile` at repo root with targets: `typecheck` (cd to skill/openspec-auto, run tsc --noEmit), `lint-scripts` (cd to skill/openspec-auto, run biome check), `lint-md` (run from root), and `lint` (aggregate of all three core targets)
-- [x] 4.2 Add one target per experimental skill linter: `lint-quick-validate`, `lint-skill-lint`, `lint-agent-skills-lint`, `lint-skill-check`, `lint-agent-skill-linter`, `lint-pulser`, `lint-cclint`, `lint-agnix`, `lint-skillscan` (`lint-skill-validator` excluded — `agent-ecosystem/skill-validator` is an agent skill, not a CLI)
-- [x] 4.3 Add `lint-experimental` aggregate target that runs all 9 experimental skill linter targets in sequence
+- [x] 4.1 Create `Justfile` at repo root with targets: `typecheck` (cd to skill/openspec-auto, run tsc --noEmit), `lint-scripts` (cd to skill/openspec-auto, run biome check), `lint-md` (run from root), `lint-secrets` (gitleaks), and `lint` (aggregate of all four core targets)
+- [x] 4.2 Add one target per experimental skill linter: `lint-quick-validate`, `lint-skill-lint` (local only, not in CI), `lint-agent-skills-lint`, `lint-pulser`, `lint-cclint`, `lint-agnix`, `lint-skillscan`; `lint-skill-check` and `lint-agent-skill-linter` removed (see design.md); `lint-skill-validator` excluded — `agent-ecosystem/skill-validator` is an agent skill, not a CLI
+- [x] 4.3 Add `lint-experimental` aggregate target that runs all 6 experimental skill linter targets in sequence (excludes `lint-skill-lint` which is local-only)
 - [x] 4.4 Verify `just lint` runs all three core linters locally
 
 ## 5. GitHub Actions Workflow
 
 - [x] 5.1 Add `extractions/setup-just@v2` step to every CI job so jobs invoke `just <target>` rather than duplicating commands
-- [x] 5.2 Create `.github/workflows/lint.yml` with three required jobs: `typecheck`, `lint-scripts`, `lint-md`
-- [x] 5.3 Add one job per experimental skill linter (9 jobs), each with `continue-on-error: true`
+- [x] 5.2 Create `.github/workflows/lint.yml` with four required jobs: `typecheck`, `lint-scripts`, `lint-md`, `lint-secrets` (gitleaks)
+- [x] 5.3 Add one job per experimental skill linter (6 jobs), each with `continue-on-error: true`; `lint-skill-check` and `lint-agent-skill-linter` removed (see design.md)
 - [x] 5.4 Add Go setup step (`actions/setup-go`) to `lint-cclint` job only (`lint-agnix` is npm, not Go; `lint-skill-validator` excluded)
 - [x] 5.5 Ensure Python is available for `lint-quick-validate` and `lint-skillscan` jobs (pre-installed on `ubuntu-latest`)
 - [x] 5.6 Verify all job names match their corresponding Justfile targets exactly

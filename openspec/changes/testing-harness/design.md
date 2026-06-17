@@ -6,7 +6,7 @@ The repo contains two distinct code surfaces: TypeScript scripts in `skill/opens
 
 **Goals:**
 - Fast, reliable blocking CI jobs for the two core surfaces (TypeScript, Markdown)
-- Non-blocking experimental jobs for 10 skill-specific linters so they can be evaluated without gating PRs
+- Non-blocking experimental jobs for 6 skill-specific linters so they can be evaluated without gating PRs
 - Single Justfile at repo root so contributors run the same commands as CI
 - Devcontainer that installs all runtimes (Node, Go, Python, just) without a custom image
 - Minimal CONTRIBUTING.md scoped to setup + running checks
@@ -34,7 +34,10 @@ npm scripts can't cleanly span the root and skill sub-package. Makefile has tab-
 markdownlint targets `skill/**/*.md` — a repo-level concern. Biome targets only the TypeScript scripts — a sub-package concern. Keeping each tool co-located with what it governs avoids cross-package config leakage.
 
 ### Skill linter selection
-Include 9 confirmed-real skill-specific CLIs. Exclude `majesticlabs-dev/skill-linter` (it's an agent skill, not a CLI — can't run in CI) and `agent-ecosystem/skill-validator` (same reason). Each linter gets its own CI job and its own `just` target. Runtimes required beyond Node: Python (for `anthropics/skills quick_validate.py` and `kurtpayne/skillscan-lint`), Go (for `dotcommander/cclint`). Note: `agent-sh/agnix` is npm-based despite its Rust implementation — no Go setup needed for it.
+6 skill-specific linters run in CI experimental jobs. Excluded from CI: `majesticlabs-dev/skill-linter` and `agent-ecosystem/skill-validator` (agent skills, not CLIs); `William-Yeh/agent-skill-linter` (returns HTTP 404 from npm — package does not exist); `thedavidas/skill-check` (security scan delegates to `mcp-scan`/`snyk-agent-scan`, which is designed for MCP server configurations — returns `unknown target` against skill directories regardless of whether a local path or GitHub URL is supplied, a category mismatch not a tool failure); `himself65/skill-lint` (flags every `.ts` file as TOXIC due to a blanket "bundled script" rule with no allowlist, producing spurious TOXIC verdicts for any skill that ships TypeScript tooling — kept as a local-only Justfile target for reference). Runtimes required beyond Node: Python (for `anthropics/skills quick_validate.py` and `kurtpayne/skillscan-lint`), Go (for `dotcommander/cclint`). Note: `agent-sh/agnix` is npm-based despite its Rust implementation — no Go setup needed for it.
+
+### gitleaks over skill-check for security scanning
+`skill-check` uses `mcp-scan` (now `snyk-agent-scan`) for security scanning. That tool is designed for MCP server configurations and cannot scan skill directories — it always returns `unknown target` with 0 findings and exits 1. `gitleaks` covers the relevant security concern (accidentally committed secrets and API keys) and is added as a blocking core job. Alternative: `trufflehog` is more thorough but heavier; `gitleaks` is fast and has a pre-built GitHub Action.
 
 ## Risks / Trade-offs
 
