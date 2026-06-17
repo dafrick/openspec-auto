@@ -89,6 +89,8 @@ jobs:
           node-version: "24"
       - uses: extractions/setup-just@v2
       - run: just lint-skill-check
+        env:
+          SKILL_CHECK_TARGET: https://github.com/${{ github.repository }}/tree/${{ github.head_ref || github.ref_name }}/skill/openspec-auto
 
   lint-pulser:
     name: lint-pulser
