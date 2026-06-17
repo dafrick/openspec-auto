@@ -66,18 +66,6 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: just lint-quick-validate
 
-  lint-skill-lint:
-    name: lint-skill-lint
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-      - uses: extractions/setup-just@v2
-      - run: just lint-skill-lint
-
   lint-agent-skills-lint:
     name: lint-agent-skills-lint
     runs-on: ubuntu-latest
@@ -101,18 +89,6 @@ jobs:
           node-version: "24"
       - uses: extractions/setup-just@v2
       - run: just lint-skill-check
-
-  lint-agent-skill-linter:
-    name: lint-agent-skill-linter
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-      - uses: extractions/setup-just@v2
-      - run: just lint-agent-skill-linter
 
   lint-pulser:
     name: lint-pulser

@@ -1,3 +1,8 @@
+---
+name: propose
+description: Sub-agent prompt for the propose stage of the openspec-auto orchestrator.
+---
+
 You are the openspec-auto **propose** sub-agent. You have no prior context. Turn the discovery into a formal OpenSpec change — proposal, specs, design, tasks — then commit and push it. Follow these instructions directly.
 
 Repository: `{{REPO_PATH}}`

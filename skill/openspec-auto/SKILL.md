@@ -1,6 +1,7 @@
 ---
 name: openspec-auto
-description: Use to autonomously resolve one GitHub issue end-to-end — triage, explore, propose, implement test-first, review, and hand off a ready PR — with a full OpenSpec paper trail. Invoke via /loop so it resumes across iterations.
+description: Use when you want to autonomously resolve one GitHub issue end-to-end — triage, explore, propose, implement test-first, review, and hand off a ready PR — with a full OpenSpec paper trail. Invoke via /loop so it resumes across iterations.
+allowed-tools: Bash, Read, Edit, Agent, Skill, EnterWorktree, ExitWorktree, ScheduleWakeup
 ---
 
 # openspec-auto
@@ -173,21 +174,21 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/<name>.ts [args]
 
 **State update protocol:** on every stage transition, `write-state.ts` first, then `sync-pr-state.ts <PR>`. First-time setup: `cd $OSL && npm install`.
 
-## Red Flags
+## Gotchas
 
-- **Never read local state across runs** — Bring-up reads only config; Triage discovers in-flight work from open PR markers and issue comments; `state.json` is recreated each run and deleted at Teardown.
-- **Never create a branch or PR before Explore returns `EXPLORED`** — Explore runs against the bare issue; a codeless draft PR is never opened.
-- **Never resume a `CI_BLOCKED` or `IN_REVIEW` PR** — a human owns it. A `NEEDS_INPUT` PR is resumable once the human answers. `IN_REVIEW` is terminal: leave it for the human to merge; if they want something different they close it and the issue is retried fresh.
-- **Never recreate the branch/PR on resume** — the worktree was torn down, but the branch and PR persist; re-establish them (Workspace resume mode), don't run `setup-workspace.ts` again.
-- **Never skip Teardown** — it runs on every exit, including terminal stops.
-- **Never start Code review before Implement returns `DONE`**, or Wrap up before a review's blocking findings are cleared (or judged minor).
-- **Never proceed past a review with unresolved blocking findings** — rerun the impl loop; after the third blocking round, post a PR comment for input and park.
-- **Never loop on minor findings** — only blocking findings trigger a rerun; minor / out-of-scope / unclear ones become open questions and the loop proceeds.
-- **Never let a review change anything** — `proposal-review` and `code-review` judge the current state only; reruns of `propose` / `implement` apply the fixes.
-- **Never end a run without scheduling the next wakeup** — the loop never stops on its own. A parked `NEEDS_INPUT`/`CI_BLOCKED` issue parks only that issue; the loop still wakes (30m) to serve others. Only a user interrupt halts it.
-- **Never let a sub-agent read your context** — pass everything through its prompt template.
-- **Never let a sub-agent edit the PR** — only the orchestrator writes the description and posts comments; sub-agents return their output and you write it.
-- **Never carry `ciFixes` across increments** — reset it to 0 before each Implement run.
+1. **Never read local state across runs** — Bring-up reads only config; Triage discovers in-flight work from open PR markers and issue comments; `state.json` is recreated each run and deleted at Teardown.
+2. **Never create a branch or PR before Explore returns `EXPLORED`** — Explore runs against the bare issue; a codeless draft PR is never opened.
+3. **Never resume a `CI_BLOCKED` or `IN_REVIEW` PR** — a human owns it. A `NEEDS_INPUT` PR is resumable once the human answers. `IN_REVIEW` is terminal: leave it for the human to merge; if they want something different they close it and the issue is retried fresh.
+4. **Never recreate the branch/PR on resume** — the worktree was torn down, but the branch and PR persist; re-establish them (Workspace resume mode), don't run `setup-workspace.ts` again.
+5. **Never skip Teardown** — it runs on every exit, including terminal stops.
+6. **Never start Code review before Implement returns `DONE`**, or Wrap up before a review's blocking findings are cleared (or judged minor).
+7. **Never proceed past a review with unresolved blocking findings** — rerun the impl loop; after the third blocking round, post a PR comment for input and park.
+8. **Never loop on minor findings** — only blocking findings trigger a rerun; minor / out-of-scope / unclear ones become open questions and the loop proceeds.
+9. **Never let a review change anything** — `proposal-review` and `code-review` judge the current state only; reruns of `propose` / `implement` apply the fixes.
+10. **Never end a run without scheduling the next wakeup** — the loop never stops on its own. A parked `NEEDS_INPUT`/`CI_BLOCKED` issue parks only that issue; the loop still wakes (30m) to serve others. Only a user interrupt halts it.
+11. **Never let a sub-agent read your context** — pass everything through its prompt template.
+12. **Never let a sub-agent edit the PR** — only the orchestrator writes the description and posts comments; sub-agents return their output and you write it.
+13. **Never carry `ciFixes` across increments** — reset it to 0 before each Implement run.
 
 ## Integration
 
