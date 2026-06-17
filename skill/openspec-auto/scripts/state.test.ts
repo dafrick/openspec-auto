@@ -126,7 +126,7 @@ describe("sync-pr-state / renderPrBlock", () => {
     assert.ok(block.includes("<!-- agent-state:"));
     const match = block.match(/<!-- agent-state: ({.*?}) -->/);
     assert.ok(match);
-    const parsed = JSON.parse(match?.[1]);
+    const parsed = JSON.parse(match![1]);
     assert.deepEqual(parsed, VALID_STATE);
   });
 

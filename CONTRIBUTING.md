@@ -6,7 +6,7 @@
 |------|---------|---------|
 | Node.js | ≥ 24 | [nodejs.org](https://nodejs.org) or [fnm](https://github.com/Schniz/fnm) |
 | just | any | `brew install just` / `apt install just` / [just.systems](https://just.systems/man/en/packages.html) |
-| Go | any | [go.dev](https://go.dev/dl/) — required for `lint-cclint` and `lint-skill-validator` only |
+| Go | any | [go.dev](https://go.dev/dl/) — required for `lint-cclint` only |
 | Python 3 | any | [python.org](https://python.org) — required for `lint-quick-validate` and `lint-skillscan` only |
 
 > **Devcontainer:** If you use VS Code Dev Containers or GitHub Codespaces, all prerequisites are installed automatically. Open the repo in a container and skip to [Running checks](#running-checks).
@@ -34,7 +34,7 @@ just lint-md       # Markdown structure
 ### Experimental skill linters
 
 ```bash
-just lint-experimental        # run all 10 experimental linters in sequence
+just lint-experimental        # run all 9 experimental linters in sequence
 just lint-skill-check         # individual linter (example)
 just lint-agnix               # individual linter (example)
 ```

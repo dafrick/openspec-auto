@@ -34,7 +34,7 @@ npm scripts can't cleanly span the root and skill sub-package. Makefile has tab-
 markdownlint targets `skill/**/*.md` — a repo-level concern. Biome targets only the TypeScript scripts — a sub-package concern. Keeping each tool co-located with what it governs avoids cross-package config leakage.
 
 ### Skill linter selection
-Include all 10 confirmed-real skill-specific CLIs. Exclude `majesticlabs-dev/skill-linter` (it's an agent skill, not a CLI — can't run in CI). Each linter gets its own CI job and its own `just` target. Runtimes required beyond Node: Python (for `anthropics/skills quick_validate.py` and `kurtpayne/skillscan-lint`), Go (for `agent-ecosystem/skill-validator` and `dotcommander/cclint`). Note: `agent-sh/agnix` is npm-based despite its Rust implementation — no Go setup needed for it.
+Include 9 confirmed-real skill-specific CLIs. Exclude `majesticlabs-dev/skill-linter` (it's an agent skill, not a CLI — can't run in CI) and `agent-ecosystem/skill-validator` (same reason). Each linter gets its own CI job and its own `just` target. Runtimes required beyond Node: Python (for `anthropics/skills quick_validate.py` and `kurtpayne/skillscan-lint`), Go (for `dotcommander/cclint`). Note: `agent-sh/agnix` is npm-based despite its Rust implementation — no Go setup needed for it.
 
 ## Risks / Trade-offs
 

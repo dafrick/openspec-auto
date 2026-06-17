@@ -18,10 +18,10 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: skill/openspec-auto/package-lock.json
+      - uses: extractions/setup-just@v2
       - run: npm ci
         working-directory: skill/openspec-auto
-      - run: npx tsc --noEmit
-        working-directory: skill/openspec-auto
+      - run: just typecheck
 
   lint-scripts:
     name: lint-scripts
@@ -33,10 +33,10 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: skill/openspec-auto/package-lock.json
+      - uses: extractions/setup-just@v2
       - run: npm ci
         working-directory: skill/openspec-auto
-      - run: npx biome check .
-        working-directory: skill/openspec-auto
+      - run: just lint-scripts
 
   lint-md:
     name: lint-md
@@ -48,8 +48,9 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: extractions/setup-just@v2
       - run: npm ci
-      - run: npx markdownlint-cli2 "skill/**/*.md" "!skill/**/node_modules/**"
+      - run: just lint-md
 
   # ── Experimental skill linters (non-blocking) ────────────────────────────
 
@@ -62,10 +63,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Clone anthropics/skills and run quick_validate
-        run: |
-          git clone --depth 1 https://github.com/anthropics/skills.git /tmp/anthropics-skills
-          python3 /tmp/anthropics-skills/skills/skill-creator/scripts/quick_validate.py skill/openspec-auto || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-quick-validate
 
   lint-skill-lint:
     name: lint-skill-lint
@@ -76,7 +75,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npx -y skill-lint skill/openspec-auto || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-skill-lint
 
   lint-agent-skills-lint:
     name: lint-agent-skills-lint
@@ -87,7 +87,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npx -y @swarmclawai/agent-skills-lint lint skill/openspec-auto || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-agent-skills-lint
 
   lint-skill-check:
     name: lint-skill-check
@@ -98,7 +99,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npx -y skill-check skill/openspec-auto || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-skill-check
 
   lint-agent-skill-linter:
     name: lint-agent-skill-linter
@@ -109,7 +111,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npx -y agent-skill-linter skill/openspec-auto || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-agent-skill-linter
 
   lint-pulser:
     name: lint-pulser
@@ -120,7 +123,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npx -y pulser-cli skill/ --format json || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-pulser
 
   lint-cclint:
     name: lint-cclint
@@ -131,8 +135,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+      - uses: extractions/setup-just@v2
       - run: go install github.com/dotcommander/cclint@latest
-      - run: cclint skill/openspec-auto || true
+      - run: just lint-cclint
 
   lint-agnix:
     name: lint-agnix
@@ -143,7 +148,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: npx -y agnix skill/openspec-auto || true
+      - uses: extractions/setup-just@v2
+      - run: just lint-agnix
 
   lint-skillscan:
     name: lint-skillscan
@@ -154,6 +160,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - run: pip3 install skillscan-lint
-      - run: skillscan-lint scan skill/openspec-auto/SKILL.md || true
-
+      - uses: extractions/setup-just@v2
+      - run: just lint-skillscan
