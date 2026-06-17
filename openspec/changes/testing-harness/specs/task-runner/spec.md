@@ -9,7 +9,7 @@ A `Justfile` SHALL exist at the repository root providing named targets for ever
 
 #### Scenario: Running all core linters
 - **WHEN** a contributor runs `just lint`
-- **THEN** all core linters (typecheck, lint-scripts, lint-md) run in sequence and the exit code reflects the combined result
+- **THEN** all core linters (typecheck, lint-scripts, lint-md, lint-secrets) run in sequence and the exit code reflects the combined result
 
 #### Scenario: Running an experimental skill linter locally
 - **WHEN** a contributor runs a named experimental target (e.g., `just lint-skill-check`, `just lint-agnix`)
@@ -17,7 +17,7 @@ A `Justfile` SHALL exist at the repository root providing named targets for ever
 
 #### Scenario: Running all experimental linters locally
 - **WHEN** a contributor runs `just lint-experimental`
-- **THEN** all 10 experimental skill linter targets run in sequence
+- **THEN** all 6 experimental skill linter targets run in sequence
 
 ### Requirement: Target names match CI job names
 Each Justfile target name SHALL match the corresponding GitHub Actions job name exactly so contributors can reproduce a failing CI job locally by running `just <job-name>`.

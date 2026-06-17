@@ -36,3 +36,14 @@ The CI pipeline SHALL run `markdownlint-cli2` against all Markdown files in `ski
 #### Scenario: Clean Markdown
 - **WHEN** all Markdown files pass markdownlint rules
 - **THEN** the `lint-md` CI job exits 0
+
+### Requirement: Secrets scanning via gitleaks
+The CI pipeline SHALL run `gitleaks` against the full repository history and fail the build if any secrets or credentials are detected.
+
+#### Scenario: Secret accidentally committed
+- **WHEN** a commit introduces a string that matches a known secret pattern (API key, token, credential)
+- **THEN** the `lint-secrets` CI job exits non-zero and blocks the PR
+
+#### Scenario: Clean repository
+- **WHEN** no secrets are present in the repository history
+- **THEN** the `lint-secrets` CI job exits 0

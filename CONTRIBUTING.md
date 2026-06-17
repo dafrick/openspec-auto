@@ -6,6 +6,7 @@
 |------|---------|---------|
 | Node.js | ≥ 24 | [nodejs.org](https://nodejs.org) or [fnm](https://github.com/Schniz/fnm) |
 | just | any | `brew install just` / `apt install just` / [just.systems](https://just.systems/man/en/packages.html) |
+| gitleaks | any | `brew install gitleaks` / [github.com/gitleaks/gitleaks](https://github.com/gitleaks/gitleaks) — required for `lint-secrets` |
 | Go | any | [go.dev](https://go.dev/dl/) — required for `lint-cclint` only |
 | Python 3 | any | [python.org](https://python.org) — required for `lint-quick-validate` and `lint-skillscan` only |
 
@@ -25,18 +26,19 @@ cd skill/openspec-auto && npm install && cd ../..
 ### Core linters (same as required CI jobs)
 
 ```bash
-just lint          # run all three core linters
+just lint          # run all four core linters
 just typecheck     # TypeScript type checking
 just lint-scripts  # Biome formatting + lint
 just lint-md       # Markdown structure
+just lint-secrets  # Secrets scanning (gitleaks)
 ```
 
 ### Experimental skill linters
 
 ```bash
-just lint-experimental        # run all 9 experimental linters in sequence
-just lint-skill-check         # individual linter (example)
+just lint-experimental        # run all 6 experimental linters in sequence
 just lint-agnix               # individual linter (example)
+just lint-pulser              # individual linter (example)
 ```
 
 Each `just <target>` name matches its GitHub Actions job name exactly — if a CI job fails, run the same target locally to reproduce it.
