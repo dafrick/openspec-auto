@@ -26,7 +26,7 @@ lint-agent-skills-lint:
     npx -y @swarmclawai/agent-skills-lint lint skill/openspec-auto
 
 lint-skill-check:
-    npx -y skill-check skill/openspec-auto --no-security-scan
+    npx -y skill-check https://github.com/dafrick/openspec-auto/tree/main/skill/openspec-auto --allow-installs
 
 lint-pulser:
     npx -y pulser-cli skill/ --format json
