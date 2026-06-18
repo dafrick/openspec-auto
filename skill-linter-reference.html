@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Linter Reference</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px; line-height: 1.5; color: #1a1a1a;
+      background: #f4f4f5; padding: 1.5rem 2rem;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; color: #111; }
+    .subtitle { color: #6b7280; font-size: 0.8rem; margin-bottom: 2rem; }
+    h2 {
+      font-size: 0.72rem; font-weight: 700; color: #6b7280;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin: 2rem 0 0.6rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.3rem;
+    }
+    h3 { font-size: 0.85rem; font-weight: 700; color: #374151; margin: 1.25rem 0 0.4rem; }
+    .note { font-size: 0.76rem; color: #6b7280; margin-bottom: 0.65rem; }
+    .updated { font-size: 0.72rem; color: #9ca3af; margin-top: 2.5rem; }
+
+    /* ── Tables ── */
+    .wrap { overflow-x: auto; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.09); margin-bottom: 1rem; }
+    table { border-collapse: collapse; width: 100%; background: #fff; font-size: 0.77rem; }
+    thead th {
+      background: #1e293b; color: #e2e8f0; font-weight: 600;
+      padding: 0.4rem 0.65rem; text-align: left; white-space: nowrap;
+      border: 1px solid #334155;
+    }
+    tbody td { padding: 0.32rem 0.65rem; border: 1px solid #e5e7eb; vertical-align: middle; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #f0f4ff; }
+
+    /* ── Score matrix ── */
+    .score-matrix thead th:not(:first-child) { text-align: center; min-width: 72px; }
+    .score-matrix tbody td:not(:first-child) { text-align: center; font-weight: 700; font-size: 0.8rem; padding: 0.4rem 0.5rem; }
+    .score-matrix tbody td:first-child { min-width: 170px; }
+    .score-matrix .tcol { border-left: 2px solid #475569; }
+    .removed-row { opacity: 0.55; }
+    .removed-row td:first-child { opacity: 1; }
+
+    /* Score cell colours — thresholds: 0 / 1-24% / 25-49% / 50-74% / 75-100% */
+    .s0 { background: #f1f5f9; color: #94a3b8; }
+    .s1 { background: #fde8e8; color: #b91c1c; }
+    .s2 { background: #fef3c7; color: #92400e; }
+    .s3 { background: #d1fae5; color: #065f46; }
+    .s4 { background: #a7f3d0; color: #064e3b; }
+
+    /* ── Domain detail tables ── */
+    .dtable thead th:first-child { min-width: 340px; }
+    .dtable tbody td:first-child { color: #374151; }
+    .dtable tbody td:last-child { min-width: 220px; }
+    .gap-row td { background: #f5f3ff !important; }
+    .gap-row:hover td { background: #ede9fe !important; }
+    .gap-row td:first-child { color: #5b21b6; }
+
+    /* Tool pills */
+    .tp  { display: inline-block; font-size: 0.67rem; font-weight: 600; background: #dbeafe; color: #1e40af; padding: 0.08em 0.35em; border-radius: 2px; margin: 0.1em 0.1em 0.1em 0; white-space: nowrap; }
+    .tp.p { background: #fef3c7; color: #92400e; }
+    .tp.r { background: #f1f5f9; color: #94a3b8; font-style: italic; }
+    .tp.p.r { background: #f1f5f9; color: #b45309; font-style: italic; }
+    .none-cov { color: #9ca3af; font-style: italic; font-size: 0.75rem; }
+    .gap-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 800;
+      background: #7c3aed; color: #fff; padding: 0.1em 0.4em;
+      border-radius: 2px; margin-right: 0.4em; vertical-align: middle; letter-spacing: 0.03em;
+    }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; font-size: 0.62rem; font-weight: 700; padding: 0.1em 0.4em; border-radius: 3px; white-space: nowrap; vertical-align: middle; }
+    .b-ci  { background: #dcfce7; color: #166534; }
+    .b-loc { background: #fef9c3; color: #854d0e; }
+    .b-rem { background: #fee2e2; color: #991b1b; }
+
+    /* ── Tool index ── */
+    .index td { vertical-align: top; padding: 0.42rem 0.65rem; }
+    .index code { font-family: "SF Mono", "Fira Code", Consolas, monospace; font-size: 0.79em; background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 2px; color: #1d4ed8; }
+    a.tl { color: #1d4ed8; text-decoration: none; }
+    a.tl:hover { text-decoration: underline; }
+    .muted { color: #6b7280; font-size: 0.72rem; }
+
+    /* ── Limitation cards ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.7rem 0.9rem; }
+    .card-head { font-weight: 700; font-size: 0.82rem; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.4rem; }
+    .card-issue { margin-bottom: 0.45rem; }
+    .card-issue:last-child { margin-bottom: 0; }
+    .card-issue-title { font-weight: 600; font-size: 0.77rem; color: #111; margin-bottom: 0.15rem; }
+    .card-issue-body { font-size: 0.75rem; color: #4b5563; line-height: 1.45; }
+    .card code { font-family: "SF Mono", "Fira Code", Consolas, monospace; font-size: 0.82em; background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 2px; }
+    .card.ok .card-issue-body { color: #15803d; }
+    .card.dim { opacity: 0.65; }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;
+      font-size: 0.75rem; color: #555; background: #fff;
+      border: 1px solid #e0e0e0; border-radius: 5px;
+      padding: 0.45rem 0.8rem; margin-bottom: 0.75rem; width: fit-content;
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+    .swatch { display: inline-block; width: 13px; height: 13px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0; }
+
+    code { font-family: "SF Mono", "Fira Code", Consolas, monospace; font-size: 0.82em; background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<h1>Skill Linter Reference</h1>
+<p class="subtitle">openspec-auto &mdash; tool provenance, domain scoring, gap analysis, known limitations &mdash; 2026-06-18</p>
+
+<!-- ═══════════════════════════════════════════ SCORE SUMMARY ══ -->
+<h2>Score Summary</h2>
+<p class="note">1 pt per check covered · 0.5 pt for partial coverage · uncovered gaps count toward the denominator · <span class="badge b-rem">removed</span> tools shown for reference only.</p>
+
+<div class="legend">
+  <span class="legend-item"><span class="swatch" style="background:#f1f5f9"></span> 0 %</span>
+  <span class="legend-item"><span class="swatch" style="background:#fde8e8"></span> 1–24 %</span>
+  <span class="legend-item"><span class="swatch" style="background:#fef3c7"></span> 25–49 %</span>
+  <span class="legend-item"><span class="swatch" style="background:#d1fae5"></span> 50–74 %</span>
+  <span class="legend-item"><span class="swatch" style="background:#a7f3d0"></span> 75–100 %</span>
+</div>
+
+<div class="wrap">
+  <table class="score-matrix">
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>A · Schema<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 14</span></th>
+        <th>B · Description<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 6</span></th>
+        <th>C · Docs<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 13</span></th>
+        <th>D · Security<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 14</span></th>
+        <th>E · Portability<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 7</span></th>
+        <th>F · Writing<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 9</span></th>
+        <th class="tcol">Total<br><span style="font-weight:400;font-size:0.7rem;color:#94a3b8">/ 63</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>quick_validate <span class="badge b-ci">CI</span></td>
+        <td class="s2">5 / 14</td>
+        <td class="s1">1 / 6</td>
+        <td class="s0">0 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">6 / 63</td>
+      </tr>
+      <tr>
+        <td>skill-lint <span class="badge b-loc">local</span></td>
+        <td class="s1">1 / 14</td>
+        <td class="s0">0 / 6</td>
+        <td class="s1">0.5 / 13</td>
+        <td class="s4">11 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">12.5 / 63</td>
+      </tr>
+      <tr>
+        <td>agent-skills-lint <span class="badge b-ci">CI</span></td>
+        <td class="s2">4 / 14</td>
+        <td class="s1">1 / 6</td>
+        <td class="s0">0 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">5 / 63</td>
+      </tr>
+      <tr class="removed-row">
+        <td>skill-check <span class="badge b-rem">removed</span></td>
+        <td class="s3">8.5 / 14</td>
+        <td class="s2">2 / 6</td>
+        <td class="s1">1 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">11.5 / 63</td>
+      </tr>
+      <tr>
+        <td>pulser <span class="badge b-ci">CI</span></td>
+        <td class="s1">1.5 / 14</td>
+        <td class="s1">1 / 6</td>
+        <td class="s1">3 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">5.5 / 63</td>
+      </tr>
+      <tr>
+        <td>cclint <span class="badge b-ci">CI</span></td>
+        <td class="s1">1.5 / 14</td>
+        <td class="s1">1 / 6</td>
+        <td class="s1">3 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">5.5 / 63</td>
+      </tr>
+      <tr>
+        <td>agnix <span class="badge b-ci">CI</span></td>
+        <td class="s1">1.5 / 14</td>
+        <td class="s0">0 / 6</td>
+        <td class="s0">0 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s3">4 / 7</td>
+        <td class="s0">0 / 9</td>
+        <td class="s1 tcol">5.5 / 63</td>
+      </tr>
+      <tr>
+        <td>skillscan-lint <span class="badge b-ci">CI</span></td>
+        <td class="s1">1 / 14</td>
+        <td class="s0">0 / 6</td>
+        <td class="s3">7 / 13</td>
+        <td class="s0">0 / 14</td>
+        <td class="s0">0 / 7</td>
+        <td class="s3">6 / 9</td>
+        <td class="s1 tcol">14 / 63</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════ DOMAIN DETAIL ══ -->
+<h2>Coverage by Domain</h2>
+<p class="note">Purple rows are gaps — checks no current tool covers. They widen the denominator in the score matrix above.</p>
+
+<!-- A -->
+<h3>A · Schema &amp; Structure &nbsp;<span style="font-weight:400;color:#9ca3af;font-size:0.78rem">14 points possible</span></h3>
+<div class="wrap">
+  <table class="dtable">
+    <thead><tr><th>Check</th><th>Covered by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>SKILL.md</code> exists at directory root</td>
+        <td><span class="tp">quick_validate</span><span class="tp">skill-lint</span><span class="tp">agent-skills-lint</span><span class="tp r">skill-check</span><span class="tp">pulser</span><span class="tp">cclint</span><span class="tp">agnix</span><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Valid YAML frontmatter present and parseable</td>
+        <td><span class="tp">quick_validate</span><span class="tp">agent-skills-lint</span><span class="tp r">skill-check</span><span class="tp p">⚠ pulser</span><span class="tp p">⚠ cclint</span></td>
+      </tr>
+      <tr>
+        <td><code>name</code>: kebab-case, ≤ 64 chars, no consecutive hyphens</td>
+        <td><span class="tp">quick_validate</span><span class="tp">agent-skills-lint</span><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr>
+        <td><code>description</code>: length limit, no angle brackets</td>
+        <td><span class="tp">quick_validate</span><span class="tp">agent-skills-lint</span><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr>
+        <td>No unexpected / disallowed frontmatter keys</td>
+        <td><span class="tp">quick_validate</span></td>
+      </tr>
+      <tr>
+        <td><code>name</code> matches directory slug</td>
+        <td><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr>
+        <td>File ends with exactly one trailing newline</td>
+        <td><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr>
+        <td>Body / directory size within limits</td>
+        <td><span class="tp p r">⚠ skill-check</span><span class="tp p">⚠ agnix</span></td>
+      </tr>
+      <tr>
+        <td>Local Markdown links resolve to real files</td>
+        <td><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr>
+        <td><code>references/</code> links resolve within skill directory</td>
+        <td><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span><code>allowed-tools</code> values validated against known Claude Code tool names</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>No merge conflict markers (<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> / <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>) in content</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Valid UTF-8 encoding — no BOM, no null bytes</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>No duplicate frontmatter keys</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- B -->
+<h3>B · Description Quality &nbsp;<span style="font-weight:400;color:#9ca3af;font-size:0.78rem">6 points possible</span></h3>
+<div class="wrap">
+  <table class="dtable">
+    <thead><tr><th>Check</th><th>Covered by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>"Use when" / trigger phrasing present</td>
+        <td><span class="tp r">skill-check</span><span class="tp">pulser</span><span class="tp">cclint</span></td>
+      </tr>
+      <tr>
+        <td>Description non-empty, meets minimum length</td>
+        <td><span class="tp">quick_validate</span><span class="tp">agent-skills-lint</span><span class="tp r">skill-check</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Does not start with article ("A ", "An ", "The ")</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>No first-person pronouns ("I will", "I can")</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>No filler phrases ("helps you to", "allows you to", "enables you to")</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Sufficiently unique — not generic copy-paste boilerplate</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- C -->
+<h3>C · Documentation Completeness &nbsp;<span style="font-weight:400;color:#9ca3af;font-size:0.78rem">13 points possible</span></h3>
+<div class="wrap">
+  <table class="dtable">
+    <thead><tr><th>Check</th><th>Covered by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>allowed-tools</code> frontmatter field present</td>
+        <td><span class="tp">pulser</span></td>
+      </tr>
+      <tr>
+        <td><code>version</code> frontmatter field</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td><code>tags</code> frontmatter field</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td><code>## Examples</code> section</td>
+        <td><span class="tp">cclint</span><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td><code>## Gotchas</code> / <code>## Anti-Patterns</code> section</td>
+        <td><span class="tp">pulser</span><span class="tp">cclint</span></td>
+      </tr>
+      <tr>
+        <td><code>## Inputs</code> / <code>## Outputs</code> sections</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td><code>## When to Use</code> section</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td><code>## Prerequisites</code> section</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Changelog / <code>updated</code> field</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Quality score / grade output</td>
+        <td><span class="tp r">skill-check</span><span class="tp p">⚠ skill-lint</span><span class="tp">pulser</span><span class="tp">cclint</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span><code>## Limitations</code> / <code>## Known Issues</code> section</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Numbered step-by-step instructions present in body</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span><code>## Related Skills</code> cross-references section</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- D -->
+<h3>D · Security &nbsp;<span style="font-weight:400;color:#9ca3af;font-size:0.78rem">14 points possible</span></h3>
+<div class="wrap">
+  <table class="dtable">
+    <thead><tr><th>Check</th><th>Covered by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Prompt injection / jailbreak patterns (DAN, role override, INST tokens)</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Obfuscation: base64, long hex, zero-width chars, Cyrillic homoglyphs</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Shell RCE: <code>curl|sh</code>, <code>eval</code>, <code>bash &lt;(curl)</code>, fork bomb</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Credential exfiltration via API key leakage to external hosts</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>External fetches to untrusted hosts / dynamic <code>import(fetch(…))</code></td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Persistence tampering: writes to <code>~/.claude</code>, shell rc, crontab, SSH</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Destructive ops: <code>rm -rf /</code>, <code>mkfs</code>, <code>dd if=/dev/zero</code></td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Metadata abuse: Anthropic impersonation, fake "official" / "verified" claims</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Overbroad auto-trigger: "always activate", "on every message"</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Over-privilege: <code>--dangerously-skip-permissions</code>, arbitrary <code>sudo</code></td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr>
+        <td>Suspicious bundled executables: <code>.ts</code>, <code>.sh</code>, <code>.exe</code>, <code>.wasm</code>, binaries</td>
+        <td><span class="tp">skill-lint</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Hardcoded credentials / tokens in prompt body text (not just bundled scripts)</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Instructions to disable safety features or skip confirmation prompts</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Instructions to bypass tool restrictions or impersonate system processes</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- E -->
+<h3>E · Portability &nbsp;<span style="font-weight:400;color:#9ca3af;font-size:0.78rem">7 points possible</span></h3>
+<div class="wrap">
+  <table class="dtable">
+    <thead><tr><th>Check</th><th>Covered by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Hardcoded user directory paths (<code>/Users/</code>, <code>C:\Users\</code>, <code>/home/</code>)</td>
+        <td><span class="tp">agnix</span></td>
+      </tr>
+      <tr>
+        <td>Skill directory total size within limit</td>
+        <td><span class="tp">agnix</span></td>
+      </tr>
+      <tr>
+        <td>Cross-platform shebangs and path separators</td>
+        <td><span class="tp">agnix</span></td>
+      </tr>
+      <tr>
+        <td>Tool / spec version pinning declared</td>
+        <td><span class="tp">agnix</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>OS-specific commands without cross-platform alternatives (<code>pbcopy</code>, <code>open</code>, <code>xdg-open</code>)</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Absolute paths hardcoded in prompt body (outside prescriptive install docs)</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Agent flavor compatibility explicitly declared in frontmatter</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- F -->
+<h3>F · Writing Quality &nbsp;<span style="font-weight:400;color:#9ca3af;font-size:0.78rem">9 points possible</span></h3>
+<div class="wrap">
+  <table class="dtable">
+    <thead><tr><th>Check</th><th>Covered by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Sentence length (max 30 words)</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Passive voice detection</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Unsubstantiated superlatives ("best", "most capable")</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Weasel intensifiers ("actually", "really")</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Nominalisations — prefer active verb forms</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr>
+        <td>Acronym definitions on first use</td>
+        <td><span class="tp">skillscan-lint</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Heading hierarchy valid — no skipping levels (H2 → H4)</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>All fenced code blocks carry a language specifier</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-badge">GAP</span>Consistent terminology — no mixing "skill" / "plugin" / "command"</td>
+        <td><span class="none-cov">— none —</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════ TOOL INDEX ══ -->
+<h2>Tool Index</h2>
+<p class="note">Popularity as of 2026-06-18. † Stars reflect the containing repo, not the script alone.</p>
+<div class="wrap">
+  <table class="index">
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Install</th>
+        <th>Repository</th>
+        <th>Version</th>
+        <th>⭐</th>
+        <th>📦 / mo</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>quick_validate</strong></td>
+        <td>
+          <code>git clone --depth 1 https://github.com/anthropics/skills.git</code><br>
+          <code>python3 skills/skills/skill-creator/scripts/quick_validate.py &lt;dir&gt;</code>
+        </td>
+        <td><a class="tl" href="https://github.com/anthropics/skills">anthropics/skills</a><br><span class="muted">Official Anthropic repo · script at <code>skill-creator/scripts/</code></span></td>
+        <td><span class="muted">no tag — pinned <code>5754626</code></span></td>
+        <td>152k†</td>
+        <td>—</td>
+        <td><span class="badge b-ci">CI</span></td>
+      </tr>
+      <tr>
+        <td><strong>skill-lint</strong></td>
+        <td><code>npx -y skill-lint &lt;dir&gt;</code></td>
+        <td><a class="tl" href="https://github.com/LichAmnesia/skill-lint">LichAmnesia/skill-lint</a><br><span class="muted">npm: <code>skill-lint</code></span></td>
+        <td>0.2.0</td>
+        <td>10</td>
+        <td>77</td>
+        <td><span class="badge b-loc">local</span></td>
+      </tr>
+      <tr>
+        <td><strong>agent-skills-lint</strong></td>
+        <td><code>npx -y @swarmclawai/agent-skills-lint lint &lt;dir&gt;</code></td>
+        <td><a class="tl" href="https://github.com/swarmclawai/agent-skills-lint">swarmclawai/agent-skills-lint</a><br><span class="muted">npm: <code>@swarmclawai/agent-skills-lint</code></span></td>
+        <td>0.1.0</td>
+        <td>1</td>
+        <td>49</td>
+        <td><span class="badge b-ci">CI</span></td>
+      </tr>
+      <tr style="opacity:0.6">
+        <td><strong>skill-check</strong></td>
+        <td><code>npx -y skill-check &lt;dir&gt; --no-security-scan</code></td>
+        <td><a class="tl" href="https://github.com/thedaviddias/skill-check">thedaviddias/skill-check</a><br><span class="muted">npm: <code>skill-check</code></span></td>
+        <td>1.2.0</td>
+        <td>180</td>
+        <td>69.7k</td>
+        <td><span class="badge b-rem">removed</span></td>
+      </tr>
+      <tr>
+        <td><strong>pulser</strong></td>
+        <td><code>npx -y pulser-cli &lt;dir&gt; --format json</code></td>
+        <td><a class="tl" href="https://github.com/TheStack-ai/pulser">TheStack-ai/pulser</a><br><span class="muted">npm: <code>pulser-cli</code></span></td>
+        <td>0.4.0</td>
+        <td>16</td>
+        <td>299</td>
+        <td><span class="badge b-ci">CI</span></td>
+      </tr>
+      <tr>
+        <td><strong>cclint</strong></td>
+        <td><code>go install github.com/dotcommander/cclint@latest &amp;&amp; cclint &lt;dir&gt;</code></td>
+        <td><a class="tl" href="https://github.com/dotcommander/cclint">dotcommander/cclint</a><br><span class="muted">Go module</span></td>
+        <td><span class="muted">no stable tag</span></td>
+        <td>15</td>
+        <td>— (Go)</td>
+        <td><span class="badge b-ci">CI</span></td>
+      </tr>
+      <tr>
+        <td><strong>agnix</strong></td>
+        <td><code>npx -y agnix &lt;dir&gt;</code></td>
+        <td><a class="tl" href="https://github.com/agent-sh/agnix">agent-sh/agnix</a><br><span class="muted">npm: <code>agnix</code> (Rust core)</span></td>
+        <td>0.33.1</td>
+        <td>291</td>
+        <td>33.2k</td>
+        <td><span class="badge b-ci">CI</span></td>
+      </tr>
+      <tr>
+        <td><strong>skillscan-lint</strong></td>
+        <td><code>pip install skillscan-lint &amp;&amp; skillscan-lint scan &lt;SKILL.md&gt;</code></td>
+        <td><a class="tl" href="https://github.com/kurtpayne/skillscan">kurtpayne/skillscan</a><br><span class="muted">PyPI: <code>skillscan-lint</code></span></td>
+        <td>1.0.0</td>
+        <td>6</td>
+        <td>— (PyPI)</td>
+        <td><span class="badge b-ci">CI</span></td>
+      </tr>
+      <tr style="opacity:0.6">
+        <td><strong>agent-skill-linter</strong></td>
+        <td><em style="color:#b91c1c">npm 404 — unusable</em></td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td><span class="badge b-rem">removed</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════ KNOWN LIMITATIONS ══ -->
+<h2>Known Limitations</h2>
+<div class="cards">
+
+  <div class="card ok">
+    <div class="card-head">quick_validate <span class="badge b-ci">CI</span></div>
+    <div class="card-issue">
+      <div class="card-issue-body">No false positives observed. Pinned to commit <code>5754626</code> for reproducibility — no stable release tag is published upstream.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">skill-lint <span class="badge b-loc">local</span></div>
+    <div class="card-issue">
+      <div class="card-issue-title">TOXIC verdict on any skill with TypeScript files</div>
+      <div class="card-issue-body">Rule R06 scores every <code>.ts</code> file as a suspicious bundled executable regardless of content. 17 scripts → score 17 → verdict TOXIC. No allowlist or per-file exception exists; <code>--help</code> exposes only <code>--json</code>, <code>--install</code>, <code>--force-install</code>. Rules R01–R05 and R07–R10 found nothing in actual content — the verdict is entirely from the file-type heuristic. Disabled in CI; kept in Justfile for local use.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">agent-skills-lint <span class="badge b-ci">CI</span></div>
+    <div class="card-issue">
+      <div class="card-issue-title">Treats every <code>.md</code> file as a skill file</div>
+      <div class="card-issue-body">Prompt templates in <code>prompts/*.md</code> had no <code>name:</code> frontmatter → 6 false-positive errors. Fixed by adding YAML frontmatter to all prompt files.</div>
+    </div>
+    <div class="card-issue">
+      <div class="card-issue-title"><code>allowed-tools</code> not in its schema</div>
+      <div class="card-issue-body">Emits <code>unknown-frontmatter-key</code> on every skill that declares tool restrictions. The field is intentional and valid per the Claude skill spec — this is a false positive.</div>
+    </div>
+  </div>
+
+  <div class="card dim">
+    <div class="card-head">skill-check <span class="badge b-rem">removed</span></div>
+    <div class="card-issue">
+      <div class="card-issue-title">Security scan built for MCP servers, not skills</div>
+      <div class="card-issue-body">Delegates to <code>mcp-scan</code> (now <code>snyk-agent-scan</code> — a Snyk product for <code>claude_desktop_config.json</code>). Against a skill directory it returns <code>target=(unknown target)</code> with 0 findings yet exits 1 with <code>security: FAIL</code>. Category mismatch, not a real finding. Replaced by <code>gitleaks</code> for secrets scanning.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">pulser <span class="badge b-ci">CI</span></div>
+    <div class="card-issue">
+      <div class="card-issue-title">Brittle section name matching</div>
+      <div class="card-issue-body">Checks headings by exact string — requires <code>## Gotchas</code>, not <code>## Red Flags</code> with identical content. The only fix is renaming sections.</div>
+    </div>
+    <div class="card-issue">
+      <div class="card-issue-title">Wrong <code>allowed-tools</code> auto-fix for orchestrators</div>
+      <div class="card-issue-body">Auto-suggests <code>Read, Grep, Glob</code> for any skill classified as <code>generation</code> (confidence 0.5). For orchestrators that need <code>Bash</code>, <code>Agent</code>, <code>Skill</code>, <code>EnterWorktree</code>, <code>ScheduleWakeup</code>, this would break the skill. Derive tool lists from the skill's actual stage-by-stage behaviour.</div>
+    </div>
+  </div>
+
+  <div class="card ok">
+    <div class="card-head">cclint <span class="badge b-ci">CI</span></div>
+    <div class="card-issue">
+      <div class="card-issue-body">No false positives observed. Score of 38/100 (grade D) reflects real documentation gaps — findings are at SUGGESTION level and actionable. Four-dimension breakdown (Structural / Practices / Composition / Documentation) is uniquely useful for Claude Code&ndash;specific conventions.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">agnix <span class="badge b-ci">CI</span></div>
+    <div class="card-issue">
+      <div class="card-issue-title">Scans <code>node_modules/</code> without exclusion</div>
+      <div class="card-issue-body">All 9 hardcoded-path warnings and the 8 MB size error came from <code>@types/node</code> / <code>typescript</code> packages, not project code. CI passes because <code>node_modules/</code> is not installed in the runner; local runs are noisy.</div>
+    </div>
+    <div class="card-issue">
+      <div class="card-issue-title">Flags prescriptive install paths as portability warnings</div>
+      <div class="card-issue-body">Paths like <code>~/.agents/skills/openspec-auto</code> inside intentionally prescriptive bash code blocks are flagged. The underlying concern is real (tracked in a GitHub issue); warnings are expected until resolved at the script level.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">skillscan-lint <span class="badge b-ci">CI</span></div>
+    <div class="card-issue">
+      <div class="card-issue-title">QL-002 sentence-length rule (max 30 words) miscalibrated for skill docs</div>
+      <div class="card-issue-body">Tables, code blocks, and Mermaid diagrams are parsed as prose sentences — 18 of 18 QL-002 warnings were false positives (a table row counted as 268 words; a Mermaid diagram as a single run-on sentence). The 30-word cap targets marketing prose, not structured specification writing. Prose-quality rules that fire on actual text — superlatives, weasel words, acronyms — are real and actionable.</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="updated">Last updated: 2026-06-18 &mdash; provenance from npm registry API, GitHub API, PyPI &mdash; gap analysis and domain scoring added 2026-06-18</p>
+
+</body>
+</html>
