@@ -28,6 +28,9 @@ lint-skill-lint:
 lint-agent-skills-lint:
     npx -y @swarmclawai/agent-skills-lint lint skill/openspec-auto
 
+lint-skill-check:
+    npx -y skill-check skill/openspec-auto --no-security-scan
+
 lint-pulser:
     npx -y pulser-cli skill/ --format json
 
@@ -40,4 +43,4 @@ lint-agnix:
 lint-skillscan:
     pip3 install -q skillscan-lint && skillscan-lint scan skill/openspec-auto/SKILL.md
 
-lint-experimental: lint-quick-validate lint-agent-skills-lint lint-pulser lint-cclint lint-agnix lint-skillscan
+lint-experimental: lint-quick-validate lint-agent-skills-lint lint-skill-check lint-pulser lint-cclint lint-agnix lint-skillscan
