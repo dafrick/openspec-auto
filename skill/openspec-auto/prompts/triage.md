@@ -37,15 +37,26 @@ Consider only rows where `agentPr` is null **and** `agentIssueState` is null. Is
 
 From eligible rows, pick the best: prefer more-recently-updated, higher-impact, lower-effort (bugs with clear repro over vague features; smaller, targeted changes; `bug` / `good first issue` labels).
 
+## Vision Fit Check
+
+Before evaluating individual issues, check whether a product vision document exists:
+
+```bash
+ls VISION.md docs/VISION.md 2>/dev/null | head -1
+```
+
+If `VISION.md` or `docs/VISION.md` is found, read it now. Internalize the product's stated purpose — this is your working vision scope for the evaluation below. If neither file exists, skip this check and proceed with the standard three-flag evaluation.
+
 ## Red Flags
 
-Reject an issue (return `NO_ELIGIBLE`) **only** when one of these signals is directly observable from the title, body, labels, and comments — no investigation required:
+Reject an issue (add it to `Deferred:`) **only** when one of these signals is directly observable — no investigation required:
 
 1. **No observable ask** — the title and body together contain no discernible problem or desired behavior.
 2. **Confirmed duplicate** — the issue body or a maintainer comment explicitly names a canonical duplicate issue.
 3. **Out of scope** — the issue or a maintainer comment explicitly states it belongs to a different repository or product.
+4. **Out of scope (vision)** — a `VISION.md` was read this run and the issue is clearly outside the product's stated purpose. Ambiguous or tangentially related issues are NOT rejected on this basis; use the default-eligible model.
 
-**You MUST NOT** check external resources (registries, URLs, linked code), evaluate technical feasibility, or reach a verdict that requires reasoning beyond a literal read of the issue surface. This is the "no design judgment" mandate from SKILL.md's Model Selection table: triage is a mechanical fetch-and-filter step. If you cannot name one of the three flags above from the issue text, the issue is eligible — do not reject it. Ambiguous or vague issues belong to Explore; triage surfaces them, it does not judge them.
+**You MUST NOT** check external resources (registries, URLs, linked code), evaluate technical feasibility, or reach a verdict that requires reasoning beyond a literal read of the issue surface. This is the "no design judgment" mandate from SKILL.md's Model Selection table: triage is a mechanical fetch-and-filter step. If you cannot name one of the four flags above from the issue text, the issue is eligible — do not reject it. Ambiguous or vague issues belong to Explore; triage surfaces them, it does not judge them.
 
 ## Output
 
@@ -77,4 +88,12 @@ Red flag: <flag name> — <one-line observation from the issue surface, e.g. "Co
 <which command failed and why>
 ```
 
-The orchestrator reads the status: `RESUME` (read `Target:` — `pr #N` means re-establish the PR's workspace and continue at the recorded phase; `issue #N` means re-dispatch Explore against the issue with prior dialogue), `SELECTED` (read issue number, prefix, slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`.
+The `Deferred:` block is optional and additive — it MAY appear alongside any primary status (`SELECTED`, `NO_ELIGIBLE`, `RESUME`, `NEEDS_CONTEXT`). Include it when one or more issues have a directly observable red flag and should be actively closed rather than silently skipped:
+
+```
+Deferred:
+- #<N>: <Red flag name> — <one-line observation from the issue surface>
+- #<M>: <Red flag name> — <one-line observation>
+```
+
+The orchestrator reads the status: `RESUME` (read `Target:` — `pr #N` means re-establish the PR's workspace and continue at the recorded phase; `issue #N` means re-dispatch Explore against the issue with prior dialogue), `SELECTED` (read issue number, prefix, slug), `NO_ELIGIBLE`, or `NEEDS_CONTEXT`. If a `Deferred:` block is present, the orchestrator processes it (posts closing comments and closes each issue) before continuing the primary routing.

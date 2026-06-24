@@ -58,6 +58,14 @@ or
 
 ```
 **Status:** NEEDS_INPUT
+Blocker: <reason code>
 ```
+
+When status is `NEEDS_INPUT`, include a `Blocker:` line naming the reason code that best describes why input is required:
+
+- `no_repro` — cannot find or trigger the reported bug; insufficient reproduction detail
+- `product_direction` — the feature touches public API or product scope in a way only the maintainer can decide
+- `missing_credentials` — investigation requires API keys, service credentials, or access not available to the agent
+- `unclear_requirements` — the issue body is ambiguous in a way that makes multiple incompatible approaches plausible
 
 End with a `## Blocking Questions` section — a numbered list when status is `NEEDS_INPUT`, or `(none)` otherwise. (The orchestrator routes your output: on `EXPLORED` it creates the Workspace; on `NEEDS_INPUT` it posts your blocking questions to the issue if no PR exists yet, or to the PR comment thread if one does.)
