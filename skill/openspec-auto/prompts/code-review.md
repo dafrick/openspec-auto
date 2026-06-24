@@ -30,9 +30,17 @@ Tag every finding two ways:
 
 You make no edits and write nothing to the PR — return your judgment; the orchestrator decides what to do.
 
+The `**Proof:**` block is **required** in every response, regardless of verdict.
+
 ```
 **Status:** APPROVED
 <nothing worth changing; any minor or out-of-scope notes>
+
+**Proof:**
+- Tests run: <exact test commands executed locally>
+- CI state: <green | failing | pending | not configured>
+- Verification: <what was manually checked, or "none">
+- Caveats: <anything that could not be verified, or "none">
 ```
 
 ```
@@ -49,6 +57,12 @@ Out of scope:
 
 Unclear / for human:
 - <finding>
+
+**Proof:**
+- Tests run: <exact test commands executed locally>
+- CI state: <green | failing | pending | not configured>
+- Verification: <what was manually checked, or "none">
+- Caveats: <anything that could not be verified, or "none">
 ```
 
-Omit any empty section. The orchestrator assesses these findings: blocking ones trigger a rerun of Implement; minor and out-of-scope ones are recorded as open questions and the loop proceeds.
+Omit any empty finding section. The orchestrator assesses these findings: blocking ones trigger a rerun of Implement; minor and out-of-scope ones are recorded as open questions and the loop proceeds.
