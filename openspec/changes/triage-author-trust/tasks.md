@@ -1,9 +1,9 @@
 ## 1. Update triage prompt
 
-- [ ] 1.1 Add trust-evaluation step to `skill/openspec-auto/prompts/triage.md` — after ranking eligible issues, fetch author signals via `gh api /users/<login>` and `gh api search/issues?q=repo:<owner>/<repo>+author:<login>` for the top candidate(s)
-- [ ] 1.2 Add tiebreaker logic description: when two candidates are otherwise equal, prefer the one whose reporter has higher trust (older account, prior repo activity, higher public repo count)
+- [ ] 1.1 Add trust-evaluation step to `skill/openspec-auto/prompts/triage.md` — after ranking eligible issues, if and only if two or more candidates land in the same priority tier (HIGH / MEDIUM / LOW) with no confident ordering, fetch author signals via `gh api /users/<login>` and `gh api "search/issues?q=repo:<owner>/<repo>+author:<login>&per_page=1"` (use `.total_count` from the search response; do not fetch for a clear winner)
+- [ ] 1.2 Add tiebreaker logic description: a tie is defined as two or more candidates in the same priority tier where recency, impact, and effort do not produce a confident ordering; when tied, prefer the candidate whose reporter has higher trust (older account, prior repo activity, higher public repo count); when not tied, skip trust fetch entirely and note `Trust: not evaluated — clear winner` in output
 - [ ] 1.3 Add rate-limit fallback: if `gh api` returns a rate-limit error, skip trust step and emit `Trust: unknown — rate limit`
-- [ ] 1.4 Update the `SELECTED` output format in triage.md to include the `Trust:` annotation line after branch slug, using the format `Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <summary>`
+- [ ] 1.4 Update the `SELECTED` output format in triage.md to include the `Trust:` annotation line after branch slug; two formats: `Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <summary>` (tie case) or `Trust: not evaluated — clear winner` (no tie)
 
 ## 2. Update orchestrator skill
 
