@@ -53,12 +53,18 @@ Summary:
 
 ```
 **Status:** BLOCKED
+Blocker: <reason code>
 Task: <the task that exceeded 3 attempts>
 <what you tried>
 ```
 
+`Blocker:` values for `BLOCKED`: `no_repro` (cannot find or trigger the reported bug), `missing_credentials` (implementation requires secrets or service access not available to the agent).
+
 ```
 **Status:** CI_BLOCKED
+Blocker: <reason code>
 CI failures: <N> attempts
 <summary of failures and fixes tried>
 ```
+
+`Blocker:` values for `CI_BLOCKED`: `first_time_ci_approval` (checks are pending due to a first-time contributor approval gate), `test_failure` (exhausted the CI fix cap against a failing test).
