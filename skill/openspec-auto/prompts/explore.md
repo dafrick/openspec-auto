@@ -18,6 +18,10 @@ Comments:
 
 `{{PRIOR_CONTEXT}}` is empty on the first run. On a **pre-Workspace resume** (the agent posted blocking questions to the issue before a branch/PR existed) it holds the prior discovery output and the issue comment dialogue (the blocking questions you asked and the human's answers). On a **post-Workspace resume** (a PR already exists) it holds the prior discovery output from the PR description and the PR comment dialogue. In both cases, treat the human's answers as authoritative and fold them into a fresh discovery output.
 
+Reporter trust: `{{AUTHOR_TRUST}}`
+
+`{{AUTHOR_TRUST}}` is populated from the triage output's `Trust:` annotation when this is a first run from a new `SELECTED` issue; it is empty on resume paths.
+
 ## 1 — Classify
 
 Decide whether this is a **bug** or a **feature** from the labels, title, and body.
@@ -45,6 +49,10 @@ This is the discovery output. Return it in full — it is the requirements recor
 ## 4 — Blocking questions
 
 A question is **blocking** if answering it would change the approach, break a public API, or needs a decision only the maintainer can make — including a feature that turns out to be **major** (architectural rework). It is **not** blocking if there are several valid approaches with equivalent outcomes (make the call and record it under Approach) or the answer is inferable from the code, tests, or issue.
+
+If `{{AUTHOR_TRUST}}` is non-empty, use it to calibrate **tone only** — never to decide whether a question is blocking:
+- **New or low-activity account** (`new account` or `0 prior repo activity` in the trust signal): frame blocking questions with additional context about what information is needed and why, and avoid assuming familiarity with the project's conventions.
+- **Known contributor** (`known contributor` in the trust signal): frame questions directly, assuming project familiarity.
 
 ## Output
 
