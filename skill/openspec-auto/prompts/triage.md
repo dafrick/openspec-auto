@@ -35,7 +35,32 @@ If any row is resumable (PR-based or pre-Workspace), return `**Status:** RESUME`
 
 Consider only rows where `agentPr` is null **and** `agentIssueState` is null. Issues where `agentIssueState` is non-null but not yet resumable (the agent has asked a blocking question on the issue and no human has replied) are neither resumable nor fresh-work candidates — skip them. All remaining issues are **eligible by default** — select the best one unless a **Red Flag** (see below) is directly observable from the issue's title, body, labels, and comments. Do not investigate to reach a verdict.
 
-From eligible rows, pick the best: prefer more-recently-updated, higher-impact, lower-effort (bugs with clear repro over vague features; smaller, targeted changes; `bug` / `good first issue` labels).
+From eligible rows, rank by: more-recently-updated, higher-impact, lower-effort (bugs with clear repro over vague features; smaller, targeted changes; `bug` / `good first issue` labels). If one candidate is clearly ranked above the rest, select it directly.
+
+## 4 — Trust tiebreaker (ties only)
+
+If two or more eligible issues land in the **same priority tier** (HIGH / MEDIUM / LOW) after step 3's ranking and you cannot confidently say one is better than the others, fetch author trust signals for those tied candidates only. **Do not fetch trust when one candidate is clearly ranked above the rest.**
+
+For each tied candidate's reporter `<login>`:
+
+```bash
+gh api /users/<login>
+```
+
+Extract `.created_at` (account creation date, format `YYYY-MM`) and `.public_repos`.
+
+```bash
+gh api "search/issues?q=repo:<owner>/<repo>+author:<login>&per_page=1"
+```
+
+Extract `.total_count` (number of prior issues or PRs in this repo by this reporter).
+
+**Prefer higher trust (apply in order):**
+1. Reporter with `.total_count > 0` (prior repo activity) over one with none
+2. Reporter with an older `.created_at` over a newer one
+3. Reporter with more `.public_repos` over fewer
+
+**Rate-limit fallback:** if `gh api` returns a rate-limit error, skip trust evaluation, select the most recent of the tied candidates, and emit `Trust: unknown — rate limit`.
 
 ## Vision Fit Check
 
@@ -74,8 +99,14 @@ Phase: <recorded phase>   ← omit for pre-Workspace issue resumes (phase is alw
 Selected issue #<N>: <title>
 Branch prefix: fix | feat
 Branch slug: <3-5-word-kebab-slug-from-title>
+Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <one-line summary>
 <brief rationale>
 ```
+
+`Trust:` has two forms:
+- **Tie resolved:** `Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <summary>` — include `new account — NEEDS_INPUT risk elevated` when the account is less than 30 days old; `known contributor — N prior issues/PRs` when `.total_count > 0`.
+- **No tie / clear winner:** `Trust: not evaluated — clear winner`
+- **Rate-limit fallback:** `Trust: unknown — rate limit`
 
 ```
 **Status:** NO_ELIGIBLE
