@@ -36,7 +36,9 @@ describe("code-review output format", () => {
     ].join("\n");
     assert.equal(hasProofBlock(withoutProof), false);
 
-    const withProof = withoutProof + "\n\n**Proof:**\n- Tests run: npm test\n- CI state: green\n- Verification: none\n- Caveats: none";
+    const withProof =
+      withoutProof +
+      "\n\n**Proof:**\n- Tests run: npm test\n- CI state: green\n- Verification: none\n- Caveats: none";
     assert.equal(hasProofBlock(withProof), true);
   });
 });
