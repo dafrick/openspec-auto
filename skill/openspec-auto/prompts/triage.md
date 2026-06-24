@@ -56,6 +56,7 @@ gh api "search/issues?q=repo:<owner>/<repo>+author:<login>&per_page=1"
 Extract `.total_count` (number of prior issues or PRs in this repo by this reporter).
 
 **Prefer higher trust (apply in order):**
+
 1. Reporter with `.total_count > 0` (prior repo activity) over one with none
 2. Reporter with an older `.created_at` over a newer one
 3. Reporter with more `.public_repos` over fewer
@@ -104,6 +105,7 @@ Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <one-line summ
 ```
 
 `Trust:` has two forms:
+
 - **Tie resolved:** `Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <summary>` — include `new account — NEEDS_INPUT risk elevated` when the account is less than 30 days old; `known contributor — N prior issues/PRs` when `.total_count > 0`.
 - **No tie / clear winner:** `Trust: not evaluated — clear winner`
 - **Rate-limit fallback:** `Trust: unknown — rate limit`
