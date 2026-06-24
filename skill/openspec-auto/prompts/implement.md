@@ -46,10 +46,13 @@ $OSL/node_modules/.bin/tsx $OSL/scripts/write-state.ts '<updated-json>'
 ```
 **Status:** DONE
 Completed tasks: <N>. All tests pass and CI is green.
+**Tests run:** <list of test commands executed, e.g. "npm test", "npm run test:unit src/foo.test.ts">
 
 Summary:
 <a short summary of what was implemented — the orchestrator writes this to the PR description>
 ```
+
+If no tests were run, write `**Tests run:** none — <brief explanation>` (e.g. "none — no test infrastructure exists for this file type").
 
 ```
 **Status:** BLOCKED
