@@ -1,26 +1,34 @@
 ## ADDED Requirements
 
-### Requirement: Triage evaluates reporter trust signals for selected issue
-After ranking eligible issues and identifying the top candidate(s), the triage sub-agent SHALL fetch author trust signals for the top candidate via `gh api` and use the result as a tiebreaker when two candidates are otherwise equal in priority. Trust signals SHALL include: account creation date, count of prior issues or PRs in the target repository authored by the reporter, and count of public repositories on the reporter's account.
+### Requirement: Triage evaluates reporter trust signals only when candidates are tied
+After ranking eligible issues by recency, impact, and effort, the triage sub-agent SHALL fetch author trust signals via `gh api` only when two or more candidates land in the same priority tier (HIGH / MEDIUM / LOW) and no confident ordering between them can be produced. If one candidate is clearly ranked above the others, trust signals SHALL NOT be fetched. Trust signals SHALL include: account creation date, count of prior issues or PRs in the target repository authored by the reporter, and count of public repositories on the reporter's account.
 
 #### Scenario: Trust tiebreaker applied between equal-ranked candidates
-- **WHEN** two or more eligible issues are equal in priority by recency, impact, and effort
-- **THEN** triage SHALL prefer the candidate whose reporter has higher trust (older account, prior repo activity, or more public repos)
+- **WHEN** two or more eligible issues are in the same priority tier and cannot be confidently ordered by recency, impact, and effort alone
+- **THEN** triage SHALL fetch trust signals for those candidates and prefer the one whose reporter has higher trust (older account, prior repo activity, or more public repos)
+
+#### Scenario: No tie means no trust fetch
+- **WHEN** one candidate is clearly ranked above all others after applying recency, impact, and effort criteria
+- **THEN** triage SHALL NOT fetch author trust signals and SHALL select that candidate directly
 
 #### Scenario: High-quality issue from new account still selected over low-quality issue
 - **WHEN** a new-account reporter has filed a clearly higher-priority issue than an established-account reporter
 - **THEN** triage SHALL select the higher-priority issue regardless of trust signals
 
 #### Scenario: gh api rate limit reached during trust fetch
-- **WHEN** the `gh api` call to fetch author data returns a rate-limit error
-- **THEN** triage SHALL skip the trust step, select the top-ranked issue by existing criteria, and emit `Trust: unknown — rate limit`
+- **WHEN** candidates are tied and the `gh api` call to fetch author data returns a rate-limit error
+- **THEN** triage SHALL skip the trust step, select from the tied candidates by existing criteria (e.g., most recent), and emit `Trust: unknown — rate limit`
 
 ### Requirement: Triage emits a Trust annotation for the selected issue
-The triage sub-agent output for `SELECTED` status SHALL include a one-line `Trust:` annotation immediately after the branch slug line. The annotation SHALL follow the format: `Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <one-line summary>`.
+The triage sub-agent output for `SELECTED` status SHALL include a one-line `Trust:` annotation immediately after the branch slug line. When trust signals were fetched (tie case), the annotation SHALL follow the format: `Trust: @<login>; acct <YYYY-MM>; <N> prior repo activity; signal: <one-line summary>`. When no tie occurred and trust was not fetched, the annotation SHALL be `Trust: not evaluated — clear winner`.
 
-#### Scenario: Trust annotation included in SELECTED output
-- **WHEN** triage returns `SELECTED` status
+#### Scenario: Trust annotation included in SELECTED output after tie-break
+- **WHEN** triage returns `SELECTED` status and trust signals were fetched to resolve a tie
 - **THEN** the output SHALL contain a `Trust:` line with the reporter's login, account creation year-month, count of prior repo activity, and a one-line signal summary
+
+#### Scenario: Trust annotation omits signals when no tie occurred
+- **WHEN** triage returns `SELECTED` status and no tie occurred
+- **THEN** the output SHALL contain `Trust: not evaluated — clear winner`
 
 #### Scenario: Elevated risk indicated for new accounts
 - **WHEN** the selected reporter's account is less than 30 days old

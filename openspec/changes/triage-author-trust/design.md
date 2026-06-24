@@ -8,8 +8,8 @@ The fix is lightweight: after ranking, apply a trust tiebreaker using data alrea
 
 **Goals:**
 
-- Add a trust-evaluation step to triage that fetches author signals via `gh api` for the top candidate(s)
-- Use trust as a tiebreaker when two issues are otherwise close in priority
+- Add a trust-evaluation step to triage that fetches author signals via `gh api` only when two or more candidates are tied in priority
+- Use trust as a tiebreaker when two issues are in the same priority tier
 - Emit a `Trust:` annotation in triage output for the selected issue
 - Pass `{{AUTHOR_TRUST}}` into the explore prompt so blocking-question tone can be calibrated
 - Document the annotation in SKILL.md's Triage stage description
@@ -17,7 +17,7 @@ The fix is lightweight: after ranking, apply a trust tiebreaker using data alrea
 **Non-Goals:**
 
 - Hard-filtering issues by author trust (low-trust never means ineligible)
-- Fetching trust data for every candidate (only needed when resolving ties, or as a final check on the top pick)
+- Fetching trust data when there is a clear top candidate (only fetched when candidates are tied in priority tier)
 - Adding trust signals to the resume path (only applies to new-issue selection)
 - Changing the orchestrator state machine or adding new phases
 
@@ -31,7 +31,15 @@ The fix is lightweight: after ranking, apply a trust tiebreaker using data alrea
 
 **Alternative considered:** Hard filter (reject issues from accounts < 30 days old). Rejected because it would block genuine new contributors and contradict the default-eligible model.
 
-### Decision 2: Three trust signals via `gh api`
+### Decision 2: "Tied" means same priority tier after ranking
+
+**Choice:** Candidates are considered tied when, after applying recency, impact, and effort criteria, two or more issues land in the same priority tier (HIGH / MEDIUM / LOW) and the model cannot produce a confident ordering between them. Trust is fetched only in that case; if one candidate is clearly ranked above the others, trust is skipped and no `gh api` calls are made.
+
+**Rationale:** Triage ranking is qualitative, not a precise numeric score. A band defined by priority tier is the natural unit of "close enough to be a coin flip." Restricting the trust fetch to genuine ties keeps the non-goal concrete: trust data is never fetched just as a sanity check on the top pick.
+
+**Alternative considered:** A percentage band (e.g., within 10% of top score). Rejected — triage doesn't produce numeric scores, so a tier band is more implementable and honest.
+
+### Decision 3: Three trust signals via `gh api`
 
 **Choice:** Fetch (a) account creation date, (b) prior issues/PRs in this repo, (c) public repo count as a proxy for general GitHub activity.
 
@@ -39,7 +47,7 @@ The fix is lightweight: after ranking, apply a trust tiebreaker using data alrea
 
 **Alternative considered:** GitHub's contribution graph or follower count. Rejected — noisy, not meaningful for OSS maintainers, and requires more API calls.
 
-### Decision 3: One-line `Trust:` annotation in triage output
+### Decision 4: One-line `Trust:` annotation in triage output
 
 **Choice:** Triage emits a single structured line: `Trust: @login; acct <YYYY-MM>; <N> prior repo activity; signal: <summary>`.
 
@@ -47,7 +55,7 @@ The fix is lightweight: after ranking, apply a trust tiebreaker using data alrea
 
 **Alternative considered:** A structured JSON block. Rejected — the rest of triage output is prose Markdown; mixing in JSON adds parsing complexity for the orchestrator.
 
-### Decision 4: Explore uses trust for tone, not routing
+### Decision 5: Explore uses trust for tone, not routing
 
 **Choice:** The `{{AUTHOR_TRUST}}` placeholder is passed to Explore, which uses it only to calibrate the language of blocking questions — not to decide whether to ask them.
 
