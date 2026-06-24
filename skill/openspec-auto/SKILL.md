@@ -110,7 +110,7 @@ Each stage writes its phase to `state.json` and syncs it to the PR, then does it
 If the triage output contains a `Deferred:` block, process it **before** continuing the primary routing — for each entry, post a closing comment on the issue then call `gh issue close <N>`. Use these comment templates:
 
 - **Confirmed duplicate**: `Closing as duplicate of #<N>` (use the issue number named in the red flag)
-- **Out of scope** or **Out of scope (vision)**: `Closing as out of scope` (append ` — outside the product vision` when the vision flag applies)
+- **Out of scope** or **Out of scope (vision)**: `Closing as out of scope` (append "— outside the product vision" when the vision flag applies)
 - **No observable ask**: `Closing: no actionable ask found in the issue`
 
 Deferred processing failures (e.g., a `gh issue close` call failing) SHALL NOT block the primary routing — log the failure and continue.
