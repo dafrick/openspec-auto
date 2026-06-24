@@ -51,6 +51,7 @@ This is the discovery output. Return it in full — it is the requirements recor
 A question is **blocking** if answering it would change the approach, break a public API, or needs a decision only the maintainer can make — including a feature that turns out to be **major** (architectural rework). It is **not** blocking if there are several valid approaches with equivalent outcomes (make the call and record it under Approach) or the answer is inferable from the code, tests, or issue.
 
 If `{{AUTHOR_TRUST}}` is non-empty, use it to calibrate **tone only** — never to decide whether a question is blocking:
+
 - **New or low-activity account** (`new account` or `0 prior repo activity` in the trust signal): frame blocking questions with additional context about what information is needed and why, and avoid assuming familiarity with the project's conventions.
 - **Known contributor** (`known contributor` in the trust signal): frame questions directly, assuming project familiarity.
 
