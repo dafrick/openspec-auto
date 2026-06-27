@@ -65,12 +65,13 @@ The explore sub-agent's discovery output SHALL include a How Might We (HMW) ques
 ---
 
 ### Requirement: Explore generates Candidates from the How Might We
-For feature issues, the explore sub-agent SHALL enumerate at least two Candidate solutions during the Ideate step. Candidates SHALL be derived from the How Might We question (the problem), not from the issue's implied solution. The issue's implied approach is not a required candidate.
+The explore sub-agent SHALL enumerate at least two Candidate solutions during the Ideate step for all issue types. For bug issues, Candidates must include at minimum: (a) fix the bug as reported, (b) won't fix with documented reasoning. "Fix in documentation," "degrade gracefully," and other resolution approaches are also valid candidates. Candidates SHALL be derived from the How Might We question (the problem), not from the issue's implied solution. The issue's implied approach is not a required candidate.
 
 #### Scenario: Candidates are generated from the HMW
 - **WHEN** the explore sub-agent enters the Ideate step
 - **THEN** it SHALL generate candidates that answer the How Might We question
 - **THEN** each candidate SHALL be named and described independently of the issue's framing
+- **THEN** for bug issues, "won't fix" SHALL always be enumerated as a candidate with explicit reasoning for or against it
 
 #### Scenario: Issue's implied approach is not among the candidates
 - **WHEN** the issue's implied solution would not answer the How Might We well or violates a principle
@@ -102,6 +103,11 @@ During the Evaluate step, the explore sub-agent SHALL apply three of the Six Thi
 #### Scenario: All candidates violate a failure mode
 - **WHEN** every candidate triggers a `docs/ux-principles.md` failure mode and no compliant alternative can be found
 - **THEN** the explore sub-agent SHALL return NEEDS_INPUT with a `product_direction` blocker
+
+#### Scenario: Feature is a major architectural rework
+- **WHEN** the Recommendation requires changes across multiple architectural boundaries, introduces a new cross-cutting abstraction, or fundamentally restructures shared infrastructure
+- **THEN** the explore sub-agent SHALL return NEEDS_INPUT with a `product_direction` blocker
+- **THEN** it SHALL include blocking questions asking the maintainer to confirm the architectural approach before any implementation begins
 
 ---
 
@@ -137,3 +143,18 @@ The explore sub-agent's discovery output SHALL include a Now / Next / Later sect
 - **WHEN** the issue suggests a partial solution to avoid complexity
 - **THEN** the explore sub-agent SHALL evaluate whether that partial solution solves the core problem well
 - **THEN** if it does not, the explore sub-agent SHALL recommend the full right solution and explain why the partial approach was not sufficient
+
+---
+
+### Requirement: Explore output includes a Blocking Questions section
+When status is NEEDS_INPUT, the explore sub-agent's output SHALL end with a `## Blocking Questions` section containing a numbered list of the specific questions requiring human input. When status is EXPLORED, the section SHALL be present with the content `(none)`. The orchestrator reads this section to post questions to the issue or PR thread.
+
+#### Scenario: NEEDS_INPUT output includes parseable blocking questions
+- **WHEN** the explore sub-agent returns NEEDS_INPUT
+- **THEN** the output SHALL end with a `## Blocking Questions` section
+- **THEN** the section SHALL contain a numbered list of the specific questions that need human input
+- **THEN** the orchestrator reads this section to post questions to the issue or PR thread
+
+#### Scenario: EXPLORED output includes empty Blocking Questions marker
+- **WHEN** the explore sub-agent returns EXPLORED
+- **THEN** the output SHALL include `## Blocking Questions` with the single entry `(none)`

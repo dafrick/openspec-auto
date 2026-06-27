@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Proposal-review applies Six Thinking Hats evaluation
-The proposal-review sub-agent SHALL evaluate each proposal using the Six Thinking Hats framework. All six hats SHALL be applied to the overall proposal (not per-candidate). The Blue Hat is applied first as a process gate; if the Double Diamond structure is missing, the review SHALL return CHANGES_REQUESTED without proceeding to the other hats.
+The proposal-review sub-agent SHALL evaluate each proposal using the Six Thinking Hats framework. All six hats SHALL be applied to the overall proposal (not per-candidate). The Blue Hat is applied first as a process gate with two distinct failure modes: if the Double Diamond structure is missing from the discovery output, the review SHALL return NEEDS_INPUT with a `structural` blocker (escalating to the human, who decides whether to re-run Explore or abandon); if proposal artifacts are missing or incomplete, the review SHALL return CHANGES_REQUESTED so Propose can supply the gaps.
 
 #### Scenario: All hats applied in sequence
 - **WHEN** the proposal-review sub-agent evaluates a proposal
@@ -10,8 +10,9 @@ The proposal-review sub-agent SHALL evaluate each proposal using the Six Thinkin
 
 #### Scenario: Blue Hat fails — Double Diamond not present
 - **WHEN** the proposal-review sub-agent finds the explore discovery output is missing required sections (Point of View, How Might We, Candidates, Recommendation)
-- **THEN** it SHALL return CHANGES_REQUESTED with a blocking finding under the Blue Hat
+- **THEN** it SHALL return NEEDS_INPUT with a `structural` blocker, posting the missing-section findings to the issue thread
 - **THEN** it SHALL NOT continue evaluating the other hats
+- **THEN** the human decides whether to re-run Explore from scratch or abandon the PR
 
 ---
 
@@ -33,6 +34,15 @@ The proposal-review sub-agent SHALL verify that the explore discovery output fol
 #### Scenario: Double Diamond structure is intact
 - **WHEN** all required sections are present and structurally sound
 - **THEN** proposal-review SHALL proceed to the White Hat
+
+#### Scenario: Proposal artifacts are incomplete
+- **WHEN** any change artifact is missing or empty: proposal.md does not exist or does not address the issue, design.md is missing or has no decisions, no spec files exist, tasks.md is absent or has no tasks
+- **THEN** proposal-review SHALL flag each missing artifact as a blocking finding under the Blue Hat
+- **THEN** it SHALL return CHANGES_REQUESTED so Propose can supply the missing artifacts
+
+#### Scenario: Tasks do not follow test-driven development
+- **WHEN** tasks.md contains no test-writing steps or no test-first ordering
+- **THEN** proposal-review SHALL flag this as a minor finding under the Blue Hat, noting the TDD gap for awareness
 
 ---
 

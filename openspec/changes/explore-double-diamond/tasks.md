@@ -30,14 +30,29 @@
 
 - [ ] 6.1 Replace the current output section list (Problem, Classification, Findings, Approach, Out of scope) with the new sections: Point of View · Classification · How Might We · Constraints · Candidates · Recommendation · Now / Next / Later
 - [ ] 6.2 Update the blocking question definition: NEEDS_INPUT only when approach is genuinely unresolvable; explicitly list what is NOT blocking — diverging from issue framing, issue constraint conflicts with a principle but compliant alternative exists, ≥2 candidates with one clearly better
+- [ ] 6.3 Ensure the output format specification is retained: NEEDS_INPUT output SHALL end with a `## Blocking Questions` numbered list; EXPLORED output SHALL include `## Blocking Questions` with `(none)`
+
+## 6a. Fix Candidates to apply to all issue types
+
+- [ ] 6a.1 Remove the "For feature issues" qualifier from the Candidates step in explore.md — candidates apply to bugs and features alike
+- [ ] 6a.2 Add guidance for bug candidates: "won't fix" (with reasoning) and "fix as reported" are always enumerated; "fix in documentation" and other resolution approaches are valid candidates
+
+## 6b. Restore architectural rework NEEDS_INPUT trigger
+
+- [ ] 6b.1 Add trigger to the Blocking Questions step in explore.md: WHEN the Recommendation requires changes across multiple architectural boundaries or introduces a new cross-cutting abstraction → NEEDS_INPUT with `product_direction` blocker and blocking questions asking the maintainer to confirm the architectural approach
 
 ## 7. Rewrite proposal-review.md — Six Thinking Hats judge criteria
 
 - [ ] 7.1 Update the opening preamble: "read the issue for the underlying user problem — the proposal's Point of View and Recommendation may diverge from the approach suggested in the issue; that is expected and correct"
-- [ ] 7.2 Add Blue Hat criterion: process gate — are Point of View, How Might We, Candidates, and Recommendation sections present and structurally sound? Missing or empty = blocking; proceed to other hats only if Blue Hat passes
+- [ ] 7.2 Add Blue Hat criterion: process gate with two failure modes — (a) discovery output missing required sections (Point of View, How Might We, Candidates, Recommendation) → NEEDS_INPUT with `structural` blocker, post to issue thread, human decides to re-explore or abandon; (b) proposal artifacts missing or incomplete (proposal.md, design.md, specs, tasks.md) → CHANGES_REQUESTED so Propose can supply the gaps. Add a `gh pr view --json body` fetch step so proposal-review can access the discovery output from the PR description.
 - [ ] 7.3 Add White Hat criterion: facts check — does the Point of View accurately describe the real problem? Are constraint classifications correct? Are candidate technical claims accurate?
 - [ ] 7.4 Add Yellow Hat criterion: value check — does the Recommendation solve the job-to-be-done from the Point of View? Does it align with VISION.md?
 - [ ] 7.5 Add Black Hat criterion: risk check — does the chosen approach violate any ux-principles.md failure modes without human authorization? Technical risks or regressions?
 - [ ] 7.6 Add Red Hat criterion: perspective check — wear three stakeholder hats in sequence: product developer (is this implementable and maintainable?), product manager (is the Now/Next/Later sequencing sensible and the scope right?), UX researcher (does the solution address the user's job and feel intuitive?)
 - [ ] 7.7 Add Green Hat criterion: coverage check — is there an obvious candidate not in the Candidates list that would change the Recommendation? Are there untested assumptions in the Recommendation rationale?
-- [ ] 7.8 Remove or subsume the legacy four criteria (Proposal, Design, Specs, Tasks) into the Six Hats structure — retain artifact completeness checks under Blue Hat (process check)
+- [ ] 7.8 Union the legacy four criteria with the Six Hats structure: artifact completeness checks (proposal.md, design.md, specs, tasks.md present and non-empty) move under Blue Hat as CHANGES_REQUESTED findings; TDD compliance in tasks.md moves under Blue Hat as a minor finding; the four original judges are subsumed, not dropped — every check that existed before must have a named home in the new structure
+
+## 8. Update propose.md for new discovery section names
+
+- [ ] 8.1 Update propose.md line 27: replace references to "Problem and Findings," "Approach," and "scope boundaries" with the new section names — Point of View, Recommendation, and Now/Next/Later respectively
+- [ ] 8.2 Add a single-line backwards-compatibility instruction before the discovery-grounding paragraph: "If the discovery uses old-style section names (Problem, Findings, Approach, Out of scope), map them to Point of View, Recommendation, and Now/Next/Later respectively before proceeding"
