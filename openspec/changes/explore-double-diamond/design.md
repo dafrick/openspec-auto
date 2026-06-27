@@ -1,3 +1,51 @@
+## Architecture and Flow
+
+### Pipeline stages
+
+```mermaid
+flowchart LR
+    E[Explore] -->|EXPLORED| W[Workspace / Propose]
+    E -->|NEEDS_INPUT| IT["Issue thread\n(human decides)"]
+    W --> PR[Proposal Review]
+    PR -->|APPROVED| IM[Implement]
+    PR -->|"NEEDS_INPUT\nstructural"| IT
+    PR -->|"CHANGES_REQUESTED\nartifact gaps"| W
+    IM --> CR[Code Review]
+    CR --> WU[Wrap-up]
+```
+
+### Double Diamond
+
+```mermaid
+flowchart LR
+    subgraph D1["◇ Problem Space"]
+        direction TB
+        DI["Discover\n(JTBD, constraints,\ncodebase)"] --> DE["Define\n(POV, constraint\nclassification, HMW)"]
+    end
+    subgraph D2["◇ Solution Space"]
+        direction TB
+        ID["Ideate\n(Candidates from HMW)"] --> EV["Evaluate\n(Yellow / Black / Green\nper candidate)"] --> RC["Recommend\n(converge)"]
+    end
+    DE --> ID
+    RC --> SC["Scope\n(Now / Next / Later)"]
+```
+
+### Blue Hat routing
+
+```mermaid
+flowchart TD
+    PR[Proposal Review] --> BH[Blue Hat]
+    BH -->|"Discovery sections present\nArtifacts complete"| WH[White → Yellow → Black → Red → Green]
+    BH -->|"Discovery sections missing\n(structural failure)"| NI[NEEDS_INPUT — structural blocker]
+    BH -->|"Artifacts missing\n(artifact gap)"| CR[CHANGES_REQUESTED — Propose fixes]
+    NI --> IT[Post to issue thread]
+    IT --> H{Human}
+    H -->|Re-explore| E[New Explore run]
+    H -->|Abandon| C[Close PR]
+```
+
+---
+
 ## Context
 
 The openspec-auto pipeline uses prompt files in `skill/openspec-auto/prompts/` to define each sub-agent's behavior. The explore sub-agent (`explore.md`) is the first stage that does substantive product work: it reads the issue, investigates the codebase, and produces a discovery output that flows to the propose stage. The proposal-review sub-agent (`proposal-review.md`) independently checks whether the proposal is sound before implementation begins.
@@ -61,9 +109,27 @@ Splitting them this way avoids redundancy: explore's evaluation is candidate-lev
 
 ### 6. Now/Next/Later replaces Out of scope
 
+### 7. Candidates apply to all issue types, not only features
+
+**Decision:** Remove the "For feature issues" qualifier from the Candidates requirement. Bug issues also enumerate at least two candidates, with "won't fix" and "fix as reported" always enumerated.
+
+Bugs routinely have multiple valid resolution paths: fix the reported behavior, won't fix (with documented reasoning), fix in documentation, degrade gracefully with a better error. Restricting candidates to features means the agent produces a single assumed fix for bugs — the same failure mode as #120 (no comparative evaluation) reproduced for a different issue class. Making candidates universal also eliminates the formal contradiction in the Recommendation requirement, which refers to "the chosen candidate" without a feature qualifier.
+
 **Decision:** The final output section is a Now/Next/Later scope breakdown, not an "Out of scope" list.
 
 "Out of scope" is passive — it lists things the change won't do. "Now/Next/Later" is active — it sequences what goes in this PR, what becomes a clear follow-up, and what is future direction without commitment. This aligns with the VISION.md principle of "loop quality over throughput": MVP is the smallest set that solves the core problem well, not the minimum that satisfies the literal issue. Large scope → sequencing proposal, not scope-cutting.
+
+## Alternatives Considered
+
+### Fix the opsx:explore skill rather than explore.md
+
+The current explore.md delegates investigation to the `opsx:explore` skill. The fix could live in the skill rather than the pipeline prompt. *Rejected because:* the failure in #120 was behavioral — the explore stage accepted a constraint without evaluating it. That is a problem with what the pipeline instructed explore to do during investigation, not with the skill's investigation stance. Fixing the skill would improve investigation breadth but would not introduce constraint classification, JTBD extraction, or comparative candidate generation. The pipeline prompt must own the product-evaluation discipline; the skill provides the investigation posture underneath it.
+
+### Fix only proposal-review (downstream gate)
+
+Add a criterion to proposal-review: "did explore evaluate at least two approaches?" without touching explore.md. *Rejected because:* a downstream gate that catches a bad explore output does not fix explore producing it. The agent still starts from the issue's framing, accepts constraints without evaluation, and derives a single approach — proposal-review catches and rejects it, creating a rejection-rerun loop rather than producing better output. Fixing the source is correct.
+
+---
 
 ## Risks / Trade-offs
 
@@ -71,3 +137,4 @@ Splitting them this way avoids redundancy: explore's evaluation is candidate-lev
 - **Red Hat requires careful framing** → anthropomorphizing AI evaluation risks generating generic "feelings" prose. Mitigated by framing as explicit stakeholder personas (product developer, PM, UX researcher, gut coherence) rather than emotions or intuition.
 - **propose.md references old section names** → the propose prompt currently says "its Problem and Findings drive the proposal's why, its Approach drives the design decisions." After this change, those section names no longer exist. This is a known downstream impact; it needs a follow-up update to propose.md to reference "Point of View" and "Recommendation." Not in scope here — tracked in Now/Next/Later.
 - **HMW quality variance** → a poorly-formed HMW (too narrow or too broad) will produce poor candidates. Proposal-review's Blue Hat check gives a correction loop, but it adds a cycle. Mitigated by including HMW formulation rules in explore.md (must not embed a solution, must be specific enough to be relevant).
+- **No executable test harness for prompt changes** → TDD as defined in VISION.md requires a red/green cycle; the spec scenarios are human-readable GWT assertions with no test runner or evaluation harness. This is an accepted constraint for this change. The spec scenarios serve as design documentation and reviewer checklists; verification is by inspection until an evaluation harness exists.
