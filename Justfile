@@ -17,7 +17,7 @@ lint: typecheck lint-scripts lint-md lint-secrets
 # Experimental skill linters (non-blocking CI)
 
 lint-quick-validate:
-    git clone --depth 1 https://github.com/anthropics/skills.git /tmp/anthropics-skills
+    git clone https://github.com/anthropics/skills.git /tmp/anthropics-skills
     git -C /tmp/anthropics-skills checkout 57546260929473d4e0d1c1bb75297be2fdfa1949
     pip3 install -q pyyaml
     python3 /tmp/anthropics-skills/skills/skill-creator/scripts/quick_validate.py skill/openspec-auto
